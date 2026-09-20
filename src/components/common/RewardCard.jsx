@@ -1,46 +1,73 @@
 import React, { useState } from "react";
 import Button from "./Button";
-import { Award, Sparkles, RotateCcw, ArrowLeft, Shield } from "lucide-react";
+import {
+  Sparkles,
+  RotateCcw,
+  ArrowLeft,
+  Download,
+  Trophy,
+  Award,
+} from "lucide-react";
 
 export default function RewardCard({
-  title = "Maestria en Principios SOLID",
+  title = "Ayudantia N°3: Principios SOLID",
   subtitle = "Certificado de Dominio Conceptual 2026-02",
   accuracy = 100,
   score = 16000,
-  mascotSrc = "/assets/mascot.png",
+  mascotSrc = "/assets/ay03_solid.png",
   onRestart = null,
   onExit = null,
 }) {
-  const [imgSrc, setImgSrc] = useState(mascotSrc || "/assets/mascot.png");
+  const [imgSrc, setImgSrc] = useState(mascotSrc || "/assets/ay03_solid.png");
   const [imageError, setImageError] = useState(false);
+  const [pointer, setPointer] = useState({ x: 50, y: 50 });
+  const [rotate, setRotate] = useState({ x: 0, y: 0 });
+  const [isInteracting, setIsInteracting] = useState(false);
+
+  const handlePointerMove = (e) => {
+    const card = e.currentTarget;
+    const rect = card.getBoundingClientRect();
+    const clientX =
+      e.clientX !== undefined
+        ? e.clientX
+        : e.touches && e.touches[0]
+        ? e.touches[0].clientX
+        : rect.left + rect.width / 2;
+    const clientY =
+      e.clientY !== undefined
+        ? e.clientY
+        : e.touches && e.touches[0]
+        ? e.touches[0].clientY
+        : rect.top + rect.height / 2;
+
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+
+    const px = Math.min(Math.max((x / rect.width) * 100, 0), 100);
+    const py = Math.min(Math.max((y / rect.height) * 100, 0), 100);
+
+    const rotX = ((py - 50) / 50) * -16;
+    const rotY = ((px - 50) / 50) * 16;
+
+    setPointer({ x: px, y: py });
+    setRotate({ x: rotX, y: rotY });
+    setIsInteracting(true);
+  };
+
+  const handlePointerLeave = () => {
+    setIsInteracting(false);
+    setRotate({ x: 0, y: 0 });
+    setPointer({ x: 50, y: 50 });
+  };
 
   const handleImgError = () => {
-    if (imgSrc !== "/assets/mascot.png") {
-      setImgSrc("/assets/mascot.png");
+    if (imgSrc !== "/assets/ay03_solid.png" && imgSrc !== "/assets/ay02_uml.png") {
+      setImgSrc("/assets/ay03_solid.png");
     } else if (imgSrc !== "/favicon.png") {
       setImgSrc("/favicon.png");
     } else {
       setImageError(true);
     }
-  };
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
-  const [isHovered, setIsHovered] = useState(false);
-
-  const handleMouseMove = (e) => {
-    const card = e.currentTarget;
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    const rotateX = ((y - centerY) / centerY) * -10;
-    const rotateY = ((x - centerX) / centerX) * 10;
-    setTilt({ x: rotateX, y: rotateY });
-  };
-
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-    setTilt({ x: 0, y: 0 });
   };
 
   return (
@@ -49,275 +76,233 @@ export default function RewardCard({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: "24px",
+        gap: "20px",
         width: "100%",
-        padding: "16px 0",
+        padding: "10px 0 24px",
       }}
     >
-      {/* Contenedor con Perspectiva 3D */}
+      {/* Encabezado Celebratorio */}
+      <div style={{ textAlign: "center", maxWidth: "480px" }}>
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "6px 16px",
+            backgroundColor: "#FEF3C7",
+            borderRadius: "20px",
+            border: "1.5px solid #FCD34D",
+            marginBottom: "10px",
+          }}
+        >
+          <Sparkles size={16} color="#D97706" />
+          <span
+            style={{
+              fontSize: "12px",
+              fontWeight: 900,
+              letterSpacing: "1px",
+              textTransform: "uppercase",
+              color: "#B45309",
+            }}
+          >
+            Carta Coleccionable Desbloqueada
+          </span>
+        </div>
+
+        <h2
+          style={{
+            fontSize: "clamp(22px, 4vw, 28px)",
+            fontWeight: 900,
+            color: "var(--color-primary)",
+            margin: "0 0 6px",
+          }}
+        >
+          ¡Dominio Conceptual Total!
+        </h2>
+        <p style={{ fontSize: "14px", color: "var(--color-text-secondary)", margin: 0 }}>
+          Mueve el cursor o inclina la pantalla para apreciar el efecto holografico de tu carta.
+        </p>
+      </div>
+
+      {/* Contenedor 3D de la Carta */}
       <div
         style={{
           perspective: "1200px",
           width: "100%",
-          maxWidth: "380px",
+          maxWidth: "370px",
+          display: "flex",
+          justifyContent: "center",
         }}
       >
         <div
-          onMouseMove={handleMouseMove}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={handleMouseLeave}
+          onMouseMove={handlePointerMove}
+          onTouchMove={handlePointerMove}
+          onMouseEnter={() => setIsInteracting(true)}
+          onMouseLeave={handlePointerLeave}
+          onTouchEnd={handlePointerLeave}
           className="fade-in"
           style={{
             position: "relative",
             width: "100%",
-            borderRadius: "20px",
-            padding: "4px",
-            background: "linear-gradient(135deg, #F59E0B, #E2E8F0, #3B82F6, #F59E0B, #10B981)",
-            backgroundSize: "300% 300%",
-            boxShadow: isHovered
-              ? "0 25px 40px -10px rgba(217, 119, 6, 0.4), 0 0 25px rgba(59, 130, 246, 0.3)"
-              : "0 15px 30px -5px rgba(0, 0, 0, 0.15)",
-            transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
-            transition: isHovered ? "transform 0.1s ease-out" : "all 0.5s ease",
+            maxWidth: "360px",
+            aspectRatio: "1792 / 2400",
+            borderRadius: "22px",
+            overflow: "hidden",
             cursor: "pointer",
+            transformStyle: "preserve-3d",
+            transform: `rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale3d(${isInteracting ? 1.04 : 1}, ${isInteracting ? 1.04 : 1}, ${isInteracting ? 1.04 : 1})`,
+            transition: isInteracting ? "transform 0.08s ease-out" : "all 0.5s ease",
+            boxShadow: isInteracting
+              ? `0 28px 50px -10px rgba(0, 0, 0, 0.4), ${rotate.y * -2}px ${rotate.x * 2}px 30px rgba(217, 119, 6, 0.35)`
+              : "0 18px 36px -8px rgba(0, 0, 0, 0.25)",
+            border: "2px solid rgba(251, 191, 36, 0.7)",
           }}
         >
-          {/* Cuerpo Interior de la Carta */}
-          <div
-            style={{
-              backgroundColor: "#0F172A",
-              borderRadius: "16px",
-              padding: "20px 18px",
-              color: "#FFFFFF",
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            {/* Destello Holográfico Superior */}
-            <div
+          {/* Capa 1: La Ilustración Completa de la Carta */}
+          {!imageError ? (
+            <img
+              src={imgSrc}
+              alt={title}
+              onError={handleImgError}
               style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                height: "50%",
-                background: "linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 100%)",
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+                userSelect: "none",
                 pointerEvents: "none",
               }}
             />
-
-            {/* Cabecera de la Carta */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "12px",
-                paddingBottom: "8px",
-                borderBottom: "1px solid rgba(255, 255, 255, 0.15)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <Sparkles size={16} color="#FBBF24" />
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 900,
-                    letterSpacing: "1.5px",
-                    textTransform: "uppercase",
-                    color: "#FBBF24",
-                  }}
-                >
-                  Logro Legendario
-                </span>
-              </div>
-              <span
-                style={{
-                  fontFamily: "Consolas, monospace",
-                  fontSize: "12px",
-                  fontWeight: 800,
-                  color: "#94A3B8",
-                }}
-              >
-                100% HP
-              </span>
-            </div>
-
-            {/* Titulo de la Carta */}
-            <h3
-              style={{
-                fontSize: "18px",
-                fontWeight: 900,
-                color: "#FFFFFF",
-                margin: "0 0 4px",
-                textAlign: "center",
-                textShadow: "0 2px 4px rgba(0,0,0,0.5)",
-              }}
-            >
-              {title}
-            </h3>
-            <p
-              style={{
-                fontSize: "11.5px",
-                color: "#94A3B8",
-                margin: "0 0 14px",
-                textAlign: "center",
-              }}
-            >
-              {subtitle}
-            </p>
-
-            {/* Ventana de Ilustración / Mascota */}
+          ) : (
             <div
               style={{
                 width: "100%",
-                height: "210px",
-                borderRadius: "12px",
+                height: "100%",
                 backgroundColor: "#1E293B",
-                border: "2px solid #334155",
                 display: "flex",
+                flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                position: "relative",
-                overflow: "hidden",
-                marginBottom: "14px",
-                boxShadow: "inset 0 2px 8px rgba(0,0,0,0.4)",
+                gap: "12px",
+                color: "#FBBF24",
+                padding: "20px",
+                textAlign: "center",
               }}
             >
-              {!imageError ? (
-                <img
-                  src={imgSrc}
-                  alt="Ilustracion de la Carta Coleccionable"
-                  onError={handleImgError}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                    padding: "8px",
-                    filter: "drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5))",
-                  }}
-                />
-              ) : (
-                /* Fallback Gráfico si la imagen aún no ha sido cargada en /assets */
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: "8px",
-                    color: "#FBBF24",
-                  }}
-                >
-                  <Award size={64} color="#FBBF24" />
-                  <span style={{ fontSize: "13px", fontWeight: 700, color: "#E2E8F0" }}>
-                    Pingüino Ingeniero SOLID
-                  </span>
-                  <span style={{ fontSize: "10.5px", color: "#64748B" }}>
-                    Coloca tu mascot.png en public/assets/
-                  </span>
-                </div>
-              )}
-
-              {/* Distintivo de Rareza */}
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: "8px",
-                  right: "8px",
-                  backgroundColor: "rgba(15, 23, 42, 0.85)",
-                  backdropFilter: "blur(4px)",
-                  padding: "4px 8px",
-                  borderRadius: "6px",
-                  border: "1px solid rgba(251, 191, 36, 0.4)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-              >
-                <Shield size={12} color="#FBBF24" />
-                <span style={{ fontSize: "10px", fontWeight: 800, color: "#FBBF24" }}>
-                  RANGO S
-                </span>
-              </div>
+              <Award size={64} color="#FBBF24" />
+              <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#FFFFFF" }}>{title}</h3>
+              <p style={{ fontSize: "13px", color: "#94A3B8" }}>{subtitle}</p>
             </div>
+          )}
 
-            {/* Estadísticas de Rendimiento */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, 1fr)",
-                gap: "8px",
-                marginBottom: "12px",
-              }}
-            >
-              <div
-                style={{
-                  padding: "8px 10px",
-                  backgroundColor: "rgba(30, 41, 59, 0.7)",
-                  borderRadius: "8px",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                  textAlign: "center",
-                }}
-              >
-                <span style={{ fontSize: "10px", color: "#94A3B8", textTransform: "uppercase" }}>
-                  Precision
-                </span>
-                <span
-                  style={{
-                    display: "block",
-                    fontSize: "16px",
-                    fontWeight: 900,
-                    color: "#10B981",
-                    fontFamily: "Consolas, monospace",
-                  }}
-                >
-                  {accuracy}%
-                </span>
-              </div>
+          {/* Capa 2: Holograma Arcoíris Foil (Diffraction Sheen) */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              pointerEvents: "none",
+              background: `linear-gradient(
+                ${115 + rotate.y * 1.5}deg,
+                transparent 15%,
+                rgba(255, 0, 128, 0.35) 30%,
+                rgba(0, 245, 255, 0.45) 45%,
+                rgba(255, 235, 0, 0.4) 55%,
+                rgba(16, 185, 129, 0.35) 68%,
+                transparent 85%
+              )`,
+              backgroundPosition: `${pointer.x}% ${pointer.y}%`,
+              backgroundSize: "220% 220%",
+              mixBlendMode: "color-dodge",
+              opacity: isInteracting ? 0.85 : 0.4,
+              transition: "opacity 0.25s ease",
+            }}
+          />
 
-              <div
-                style={{
-                  padding: "8px 10px",
-                  backgroundColor: "rgba(30, 41, 59, 0.7)",
-                  borderRadius: "8px",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                  textAlign: "center",
-                }}
-              >
-                <span style={{ fontSize: "10px", color: "#94A3B8", textTransform: "uppercase" }}>
-                  Puntaje Total
-                </span>
-                <span
-                  style={{
-                    display: "block",
-                    fontSize: "16px",
-                    fontWeight: 900,
-                    color: "#FBBF24",
-                    fontFamily: "Consolas, monospace",
-                  }}
-                >
-                  {score} pts
-                </span>
-              </div>
-            </div>
+          {/* Capa 3: Destello Especular de Luz Blanca (Specular Glare) */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              pointerEvents: "none",
+              background: `radial-gradient(
+                circle at ${pointer.x}% ${pointer.y}%,
+                rgba(255, 255, 255, 0.75) 0%,
+                rgba(255, 255, 255, 0.2) 25%,
+                transparent 55%
+              )`,
+              mixBlendMode: "overlay",
+              opacity: isInteracting ? 0.9 : 0.25,
+              transition: "opacity 0.2s ease",
+            }}
+          />
 
-            {/* Cita Pedagógica */}
-            <div
-              style={{
-                padding: "8px 10px",
-                backgroundColor: "rgba(15, 23, 42, 0.6)",
-                borderLeft: "2px solid #FBBF24",
-                borderRadius: "4px",
-                fontSize: "11px",
-                color: "#CBD5E1",
-                lineHeight: 1.4,
-                fontStyle: "italic",
-              }}
-            >
-              "Ninguna clase debe prometer lo que no puede cumplir. El software crece sin desarmar lo probado."
-            </div>
-          </div>
+          {/* Capa 4: Micro-Textura Holográfica de Líneas Finas */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              pointerEvents: "none",
+              background: `repeating-linear-gradient(
+                ${45 + rotate.x}deg,
+                rgba(255, 255, 255, 0.05) 0px,
+                rgba(255, 255, 255, 0.05) 1.5px,
+                transparent 1.5px,
+                transparent 6px
+              )`,
+              mixBlendMode: "color-dodge",
+              opacity: isInteracting ? 0.7 : 0.35,
+            }}
+          />
+
+          {/* Bisel Brillante en los Bordes */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              borderRadius: "20px",
+              boxShadow: "inset 0 0 15px rgba(255, 215, 0, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.5)",
+              pointerEvents: "none",
+            }}
+          />
         </div>
+      </div>
+
+      {/* Tarjeta Informativa del Logro */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "14px",
+          padding: "10px 20px",
+          backgroundColor: "var(--color-surface)",
+          borderRadius: "12px",
+          border: "1px solid var(--color-border)",
+          boxShadow: "var(--shadow-sm)",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <Trophy size={16} color="#D97706" />
+          <span style={{ fontSize: "13.5px", fontWeight: 800, color: "var(--color-primary)" }}>
+            Rango S
+          </span>
+        </div>
+        <div style={{ width: "1px", height: "16px", backgroundColor: "var(--color-border)" }} />
+        <span style={{ fontSize: "13.5px", fontWeight: 700, color: "#16A34A" }}>
+          Precision: {accuracy}%
+        </span>
+        <div style={{ width: "1px", height: "16px", backgroundColor: "var(--color-border)" }} />
+        <span
+          style={{
+            fontSize: "13.5px",
+            fontWeight: 800,
+            fontFamily: "Consolas, monospace",
+            color: "var(--color-accent)",
+          }}
+        >
+          {score} pts
+        </span>
       </div>
 
       {/* Botones de Acción */}
@@ -329,13 +314,25 @@ export default function RewardCard({
           flexWrap: "wrap",
         }}
       >
+        {/* Botón Descargar Carta */}
+        <a
+          href={imgSrc}
+          download={`Carta_${title.replace(/[^a-zA-Z0-9]/g, "_")}.png`}
+          style={{ textDecoration: "none" }}
+        >
+          <Button variant="accent" icon={Download} className="touch-btn">
+            Descargar Carta
+          </Button>
+        </a>
+
         {onRestart && (
-          <Button variant="secondary" icon={RotateCcw} onClick={onRestart}>
+          <Button variant="secondary" icon={RotateCcw} onClick={onRestart} className="touch-btn">
             Practicar de Nuevo
           </Button>
         )}
+
         {onExit && (
-          <Button variant="primary" icon={ArrowLeft} onClick={onExit}>
+          <Button variant="primary" icon={ArrowLeft} onClick={onExit} className="touch-btn">
             Volver al Menu
           </Button>
         )}
