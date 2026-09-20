@@ -448,3 +448,63 @@ input, button, select, textarea {
     box-shadow: 0 0 0 rgba(245, 158, 11, 0);
   }
 }
+
+/* Efecto interactivo de rasgado en el sector superior del sobre */
+.tear-strip-zone {
+  position: relative;
+  width: 100%;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  transition: background-color 0.2s ease;
+}
+
+.tear-strip-zone:active {
+  cursor: grabbing;
+}
+
+.tear-line-perforated {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    #F59E0B 0px,
+    #F59E0B 8px,
+    transparent 8px,
+    transparent 14px
+  );
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+}
+
+.tear-rift-glow {
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  height: 6px;
+  background: linear-gradient(90deg, #FDE68A, #F59E0B, #FFFFFF);
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.95), 0 0 28px rgba(255, 255, 255, 0.9);
+  border-radius: 4px;
+}
+
+@keyframes stripPeelAway {
+  0% {
+    transform: rotate(0deg) translateY(0);
+    opacity: 1;
+  }
+  45% {
+    transform: rotate(-10deg) translateY(-25px) scale(1.02);
+    opacity: 0.9;
+  }
+  100% {
+    transform: rotate(-22deg) translateY(-80px) scale(0.85);
+    opacity: 0;
+  }
+}
+
+.strip-peeling {
+  animation: stripPeelAway 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  pointer-events: none;
+}

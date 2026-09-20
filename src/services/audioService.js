@@ -270,6 +270,36 @@ class QuizAudioService {
     } catch {}
   }
 
+  
+  playHoloShimmer(pitchRatio = 1.0) {
+    this.ensureContext();
+    if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const baseFreq = 1600 * Math.max(0.6, Math.min(1.8, pitchRatio));
+      const harmonics = [baseFreq, baseFreq * 1.5, baseFreq * 2.0];
+
+      harmonics.forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.08, now + 0.12);
+
+        const targetVol = 0.07 / (idx + 1);
+        gain.gain.setValueAtTime(targetVol, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.start(now);
+        osc.stop(now + 0.15);
+      });
+    } catch {}
+  }
+
   cleanup() {
     this.stopMusic();
     if (this.ctx) {

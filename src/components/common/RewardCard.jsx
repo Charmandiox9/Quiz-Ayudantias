@@ -11,7 +11,6 @@ import {
   Zap,
   CheckCircle2,
   ExternalLink,
-  Gift,
 } from "lucide-react";
 
 /**
@@ -47,11 +46,18 @@ export default function RewardCard({
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [generatedBlobUrl, setGeneratedBlobUrl] = useState(null);
 
-  // Estados compartidos para la fisica 3D interactiva del raton (tanto para el sobre como para la carta)
+  // Estado del rasgado interactivo del sobre
+  const [isTearing, setIsTearing] = useState(false);
+  const [tearProgress, setTearProgress] = useState(0);
+
+  // Estados para la fisica 3D interactiva del raton
   const [pointer, setPointer] = useState({ x: 50, y: 50 });
   const [rotate, setRotate] = useState({ x: 0, y: 0 });
   const [isInteracting, setIsInteracting] = useState(false);
 
+  const lastShimmerTimeRef = useRef(0);
+  const lastPosRef = useRef({ x: 50, y: 50 });
+  const tearStripRef = useRef(null);
   const downloadBtnRef = useRef(null);
 
   const activeImgSrc = customSrcOverride || mascotSrc || "/assets/ay03_solid.png";
@@ -63,14 +69,12 @@ export default function RewardCard({
   }, [title]);
 
   /**
-   * Apertura pausada y cinematografica del sobre (1.5s).
-   * Fase 1: Carga luminosa y sonido de rasgado (0 - 450ms).
-   * Fase 2: Fanfarria triunfal y transicion (450ms - 900ms).
-   * Fase 3: La carta emerge majestuosamente y el sobre se desvanece (900ms - 1500ms).
+   * Ejecuta la apertura completa del sobre tras el rasgado.
    */
-  const handleOpenPack = () => {
+  const triggerFullOpen = () => {
     if (isOpening || isOpened) return;
     setIsOpening(true);
+    setTearProgress(100);
 
     try {
       audioService.playTear();
@@ -93,7 +97,61 @@ export default function RewardCard({
   };
 
   /**
-   * Controlador de movimiento 3D compartido (responde tanto en el sobre como en la carta).
+   * Eventos de rasgado táctil sobre el sector superior del sobre.
+   */
+  const handleTearStart = (e) => {
+    e.stopPropagation();
+    if (isOpening || isOpened) return;
+    setIsTearing(true);
+
+    try {
+      audioService.playTear();
+    } catch {
+      // Audio fallback
+    }
+
+    updateTearFromPointer(e);
+  };
+
+  const updateTearFromPointer = (e) => {
+    if (!tearStripRef.current) return;
+    const rect = tearStripRef.current.getBoundingClientRect();
+    const clientX =
+      e.clientX !== undefined
+        ? e.clientX
+        : e.touches && e.touches[0]
+        ? e.touches[0].clientX
+        : rect.left;
+
+    const relX = Math.max(0, Math.min(clientX - rect.left, rect.width));
+    const progress = Math.round((relX / rect.width) * 100);
+
+    setTearProgress(progress);
+
+    if (progress >= 65) {
+      setIsTearing(false);
+      triggerFullOpen();
+    }
+  };
+
+  const handleTearMove = (e) => {
+    if (!isTearing) return;
+    e.stopPropagation();
+    updateTearFromPointer(e);
+  };
+
+  const handleTearEnd = () => {
+    if (!isTearing) return;
+    setIsTearing(false);
+    if (tearProgress >= 35) {
+      triggerFullOpen();
+    } else {
+      setTearProgress(0);
+    }
+  };
+
+  /**
+   * Controlador de movimiento 3D con emision de sonido holografico al mover la carta.
    */
   const handlePointerMove = (e) => {
     if (isSuctioning) return;
@@ -124,6 +182,25 @@ export default function RewardCard({
     setPointer({ x: px, y: py });
     setRotate({ x: rotX, y: rotY });
     setIsInteracting(true);
+
+    // Sonido al mover la carta (holo shimmer sutil modulado por el angulo)
+    if (isOpened && !isOpening) {
+      const now = Date.now();
+      const dx = Math.abs(px - lastPosRef.current.x);
+      const dy = Math.abs(py - lastPosRef.current.y);
+
+      if (dx + dy > 4 && now - lastShimmerTimeRef.current > 130) {
+        lastShimmerTimeRef.current = now;
+        lastPosRef.current = { x: px, y: py };
+
+        const pitchRatio = 1 + (rotX + rotY) / 70;
+        try {
+          audioService.playHoloShimmer(pitchRatio);
+        } catch {
+          // Audio fallback
+        }
+      }
+    }
   };
 
   const handlePointerLeave = () => {
@@ -146,7 +223,6 @@ export default function RewardCard({
    * Guarda la imagen asegurando formato PNG sin perdida en todos los navegadores y Windows.
    */
   const saveImageFile = async (pngBlob, filename) => {
-    // 1. Intentar con showSaveFilePicker (Chromium nativo en Windows)
     if (typeof window !== "undefined" && "showSaveFilePicker" in window) {
       try {
         const handle = await window.showSaveFilePicker({
@@ -169,7 +245,6 @@ export default function RewardCard({
       }
     }
 
-    // 2. Metodo estandar mediante Blob URL forzado
     const url = URL.createObjectURL(pngBlob);
     setGeneratedBlobUrl(url);
 
@@ -190,15 +265,13 @@ export default function RewardCard({
 
   /**
    * Renderizado en Canvas en MAXIMA RESOLUCION (1792 x 2400).
-   * Se inserta unicamente el ID, semestre, ramo y usuario de GitHub @Marton1123 en el borde inferior exterior,
-   * garantizando que los medallones e ilustracion permanezcan 100% intactos y limpios.
+   * Solo incluye el ID, semestre, ramo y usuario de GitHub en el borde exterior inferior.
    */
   const handleCanvasDownload = async () => {
     if (isDownloading || isSuctioning) return;
     setIsDownloading(true);
     setIsSuctioning(true);
 
-    // Reproducir efecto de succion por el boton
     try {
       audioService.playSuction();
     } catch {
@@ -209,7 +282,6 @@ export default function RewardCard({
     const cleanFilename = `Carta_IS_${cleanId}.png`;
 
     try {
-      // 1. Cargar imagen binaria mediante fetch para máxima fidelidad
       const response = await fetch(activeImgSrc);
       const sourceBlob = await response.blob();
       const imgBitmap = await createImageBitmap(sourceBlob);
@@ -217,17 +289,15 @@ export default function RewardCard({
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
-      // Resolucion nativa ultra nitida
       canvas.width = imgBitmap.width || 1792;
       canvas.height = imgBitmap.height || 2400;
 
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
 
-      // Dibujar la ilustracion completa de la carta
       ctx.drawImage(imgBitmap, 0, 0, canvas.width, canvas.height);
 
-      // Sombra para contraste y legibilidad sobre cualquier fondo
+      // Sombra suave para contraste
       ctx.shadowColor = "rgba(0, 0, 0, 0.95)";
       ctx.shadowBlur = 5;
       ctx.shadowOffsetX = 0;
@@ -235,7 +305,7 @@ export default function RewardCard({
 
       const footerY = canvas.height - 24;
 
-      // Izquierda: ID unico de la carta
+      // Izquierda: ID unico
       ctx.fillStyle = "#F59E0B";
       ctx.font = "bold 20px Consolas, monospace";
       ctx.textAlign = "left";
@@ -256,7 +326,6 @@ export default function RewardCard({
       ctx.textBaseline = "middle";
       ctx.fillText("Ayudantia: @Marton1123", canvas.width - 68, footerY);
 
-      // 2. Exportar canvas a Blob PNG genuino sin perdida de calidad
       const canvasBlob = await new Promise((resolve) =>
         canvas.toBlob(resolve, "image/png", 1.0)
       );
@@ -265,16 +334,12 @@ export default function RewardCard({
         type: "image/png",
       });
 
-      // 3. Esperar que la animacion pausada de succion culmine (1.1s)
       await new Promise((resolve) => setTimeout(resolve, 1100));
 
-      // 4. Guardar archivo con formato PNG garantizado
       const saved = await saveImageFile(finalPngBlob, cleanFilename);
 
       if (saved) {
         setDownloadSuccess(true);
-
-        // 5. Registrar la descarga en base de datos (Supabase y localStorage)
         certificateService.recordDownload({
           serialId: uniqueId,
           quizTitle: title,
@@ -284,7 +349,6 @@ export default function RewardCard({
         });
       }
     } catch {
-      // Fallback directo en caso de incompatibilidad
       const a = document.createElement("a");
       a.href = activeImgSrc;
       a.download = cleanFilename;
@@ -310,7 +374,7 @@ export default function RewardCard({
         padding: "10px 0 24px",
       }}
     >
-      {/* 1. Experiencia del Sobre Booster Pack con Diseno Coherente y Movimiento 3D */}
+      {/* 1. Experiencia del Sobre Booster Pack con Diseno Limpio, Rasgado Táctil y Movimiento 3D */}
       {!isOpened ? (
         <div
           className="fade-in"
@@ -318,7 +382,7 @@ export default function RewardCard({
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            maxWidth: "420px",
+            maxWidth: "400px",
             width: "100%",
             textAlign: "center",
           }}
@@ -354,28 +418,27 @@ export default function RewardCard({
               fontSize: "clamp(22px, 4vw, 28px)",
               fontWeight: 900,
               color: "var(--color-primary)",
-              marginBottom: "8px",
+              marginBottom: "6px",
             }}
           >
-            Has ganado un Sobre Coleccionable
+            Sobre Coleccionable
           </h2>
           <p
             style={{
-              fontSize: "14.5px",
+              fontSize: "14px",
               color: "var(--color-text-secondary)",
-              marginBottom: "20px",
-              lineHeight: 1.5,
+              marginBottom: "18px",
             }}
           >
-            Mueve el cursor para apreciar el brillo foil 3D, y presiona el sobre para rasgarlo y revelar tu carta.
+            Desliza o presiona sobre la tira dorada superior para rasgar el sobre.
           </p>
 
-          {/* Contenedor 3D del Sobre (Reacciona al raton igual que la carta) */}
+          {/* Contenedor 3D del Sobre */}
           <div
             style={{
               perspective: "1200px",
               width: "100%",
-              maxWidth: "360px",
+              maxWidth: "350px",
               display: "flex",
               justifyContent: "center",
               marginBottom: "18px",
@@ -387,16 +450,14 @@ export default function RewardCard({
               onMouseEnter={() => setIsInteracting(true)}
               onMouseLeave={handlePointerLeave}
               onTouchEnd={handlePointerLeave}
-              onClick={handleOpenPack}
               className={`card-hover ${isOpening ? "pack-charge" : ""}`}
               style={{
                 position: "relative",
                 width: "100%",
-                maxWidth: "360px",
+                maxWidth: "350px",
                 aspectRatio: "1792 / 2400",
                 borderRadius: "22px",
                 overflow: "hidden",
-                cursor: "pointer",
                 transformStyle: "preserve-3d",
                 transform: `rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale3d(${isInteracting ? 1.03 : 1}, ${isInteracting ? 1.03 : 1}, ${isInteracting ? 1.03 : 1})`,
                 transition: isInteracting ? "transform 0.08s ease-out" : "all 0.5s ease",
@@ -404,171 +465,151 @@ export default function RewardCard({
                   ? `0 28px 55px -10px rgba(15, 23, 42, 0.55), ${rotate.y * -2}px ${rotate.x * 2}px 32px rgba(245, 158, 11, 0.35)`
                   : "0 20px 40px -8px rgba(15, 23, 42, 0.4)",
                 border: "2.5px solid rgba(251, 191, 36, 0.85)",
-                background: "linear-gradient(135deg, #090D16 0%, #151D3B 30%, #1E3A8A 65%, #0F172A 100%)",
+                background: "linear-gradient(140deg, #070A12 0%, #151E36 40%, #1E3A8A 75%, #0B1120 100%)",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
-                padding: "20px 18px",
+                padding: "16px 14px",
                 color: "#FFFFFF",
               }}
             >
               {/* Costura superior de sellado termico foil */}
               <div
                 style={{
-                  height: "18px",
+                  height: "16px",
                   background: "repeating-linear-gradient(90deg, #F59E0B 0px, #F59E0B 3px, #78350F 3px, #78350F 6px)",
-                  borderRadius: "6px",
+                  borderRadius: "5px",
                   opacity: 0.9,
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
                 }}
               />
 
-              {/* Franja de Rasgado Perforada (Elegante e integrada, sin cortes extranos) */}
+              {/* SECTOR INTERACTIVO DE RASGADO SUPERIOR */}
               <div
+                ref={tearStripRef}
+                onMouseDown={handleTearStart}
+                onMouseMove={handleTearMove}
+                onTouchStart={handleTearStart}
+                onTouchMove={handleTearMove}
+                onMouseUp={handleTearEnd} onTouchEnd={handleTearEnd} onClick={triggerFullOpen}
+                className={`tear-strip-zone ${isOpening ? "strip-peeling" : ""}`}
                 style={{
-                  margin: "8px 0",
-                  padding: "8px 12px",
-                  borderBottom: "2px dashed rgba(251, 191, 36, 0.7)",
+                  margin: "8px 0 16px",
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  backgroundColor: isTearing
+                    ? "rgba(245, 158, 11, 0.35)"
+                    : "rgba(255, 255, 255, 0.07)",
+                  border: "1px solid rgba(251, 191, 36, 0.45)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  backgroundColor: "rgba(255, 255, 255, 0.05)",
-                  borderRadius: "8px",
                 }}
               >
-                <span
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <Zap size={16} color="#FBBF24" />
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 900,
+                      letterSpacing: "0.8px",
+                      color: "#FDE68A",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {tearProgress > 0 ? "Rasgando..." : "Desliza para rasgar"}
+                  </span>
+                </div>
+
+                <div
                   style={{
                     fontSize: "11px",
                     fontWeight: 900,
-                    letterSpacing: "1px",
-                    textTransform: "uppercase",
-                    color: "#FCD34D",
-                  }}
-                >
-                  LINEA DE APERTURA OFICIAL
-                </span>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 800,
-                    color: "#FEF3C7",
-                    backgroundColor: "rgba(245, 158, 11, 0.35)",
-                    padding: "2px 8px",
+                    color: "#0F172A",
+                    backgroundColor: "#FCD34D",
+                    padding: "3px 9px",
                     borderRadius: "12px",
+                    letterSpacing: "0.5px",
                   }}
                 >
-                  TIRAR AQUI
-                </span>
+                  TIRAR
+                </div>
+
+                {/* Linea perforada */}
+                <div className="tear-line-perforated" />
+
+                {/* Destello visible de la grieta rasgada */}
+                {(isTearing || tearProgress > 0) && (
+                  <div
+                    className="tear-rift-glow"
+                    style={{ width: `${tearProgress}%` }}
+                  />
+                )}
               </div>
 
-              {/* Emblema Central Integrado del Sobre Coleccionable */}
+              {/* Centro Limpio del Sobre: Sin texto redundante */}
               <div
                 style={{
-                  padding: "16px 12px",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   textAlign: "center",
+                  padding: "12px 16px",
                 }}
               >
                 <div
                   style={{
-                    width: "82px",
-                    height: "82px",
-                    borderRadius: "24px",
-                    backgroundColor: "rgba(255, 255, 255, 0.1)",
-                    backdropFilter: "blur(8px)",
+                    width: "76px",
+                    height: "76px",
+                    borderRadius: "22px",
+                    backgroundColor: "rgba(255, 255, 255, 0.08)",
+                    backdropFilter: "blur(6px)",
                     border: "2px solid #FCD34D",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    marginBottom: "14px",
-                    boxShadow: "0 8px 20px rgba(0,0,0,0.5), inset 0 1px 3px rgba(255,255,255,0.4)",
+                    marginBottom: "16px",
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
                   }}
                 >
-                  <Gift size={42} color="#FBBF24" />
+                  <Sparkles size={40} color="#FBBF24" />
                 </div>
-
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 900,
-                    letterSpacing: "1.8px",
-                    textTransform: "uppercase",
-                    color: "#FCD34D",
-                    marginBottom: "6px",
-                  }}
-                >
-                  INGENIERIA DE SOFTWARE 2026-02
-                </span>
 
                 <h3
                   style={{
-                    fontSize: "22px",
+                    fontSize: "21px",
                     fontWeight: 900,
                     color: "#FFFFFF",
                     margin: "0 0 6px",
-                    textShadow: "0 2px 10px rgba(0,0,0,0.7)",
+                    textShadow: "0 2px 8px rgba(0,0,0,0.7)",
                   }}
                 >
-                  Sobre de Maestria
+                  {title}
                 </h3>
 
-                <p style={{ fontSize: "13px", color: "#CBD5E1", margin: "0 0 10px", lineHeight: 1.4 }}>
-                  {title}
-                </p>
-
-                <div
+                <span
                   style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    padding: "4px 12px",
-                    backgroundColor: "rgba(245, 158, 11, 0.2)",
-                    borderRadius: "20px",
-                    border: "1px solid rgba(251, 191, 36, 0.5)",
+                    fontSize: "12px",
+                    fontWeight: 800,
+                    color: "#FCD34D",
+                    letterSpacing: "1px",
+                    textTransform: "uppercase",
                   }}
                 >
-                  <span style={{ fontSize: "11px", fontWeight: 800, color: "#FDE68A" }}>
-                    EDICION LIMITADA — 100% DOMINIO
-                  </span>
-                </div>
+                  Carta de Maestria
+                </span>
               </div>
 
-              {/* Boton Táctil Inferior de Rasgado */}
-              <div>
-                <div
-                  style={{
-                    padding: "10px 14px",
-                    backgroundColor: "rgba(245, 158, 11, 0.28)",
-                    borderRadius: "12px",
-                    border: "1.5px dashed #FCD34D",
-                    marginBottom: "10px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                  }}
-                >
-                  <Zap size={16} color="#FDE68A" />
-                  <span style={{ fontSize: "12.5px", fontWeight: 900, color: "#FDE68A" }}>
-                    {isOpening ? "Abriendo sobre..." : "Toca aqui para rasgar y abrir"}
-                  </span>
-                </div>
+              {/* Costura inferior de sellado termico foil */}
+              <div
+                style={{
+                  height: "16px",
+                  background: "repeating-linear-gradient(90deg, #F59E0B 0px, #F59E0B 3px, #78350F 3px, #78350F 6px)",
+                  borderRadius: "5px",
+                  opacity: 0.9,
+                }}
+              />
 
-                {/* Costura inferior de sellado termico foil */}
-                <div
-                  style={{
-                    height: "18px",
-                    background: "repeating-linear-gradient(90deg, #F59E0B 0px, #F59E0B 3px, #78350F 3px, #78350F 6px)",
-                    borderRadius: "6px",
-                    opacity: 0.9,
-                    boxShadow: "0 -2px 8px rgba(0,0,0,0.4)",
-                  }}
-                />
-              </div>
-
-              {/* Brillo Foil Metalico Dinamico que sigue al cursor en el sobre */}
+              {/* Brillo foil dinamico que sigue al cursor en el sobre */}
               <div
                 style={{
                   position: "absolute",
@@ -576,8 +617,8 @@ export default function RewardCard({
                   pointerEvents: "none",
                   background: `radial-gradient(
                     circle at ${pointer.x}% ${pointer.y}%,
-                    rgba(255, 255, 255, 0.4) 0%,
-                    rgba(255, 215, 0, 0.2) 30%,
+                    rgba(255, 255, 255, 0.45) 0%,
+                    rgba(251, 191, 36, 0.22) 35%,
                     transparent 65%
                   )`,
                   mixBlendMode: "overlay",
@@ -593,15 +634,15 @@ export default function RewardCard({
               variant="accent"
               size="lg"
               icon={Zap}
-              onClick={handleOpenPack}
+              onClick={triggerFullOpen}
               className="touch-btn pulse-animation"
             >
-              {isOpening ? "Abriendo Sobre..." : "Abrir Sobre Coleccionable"}
+              {isOpening ? "Abriendo Sobre..." : "Rasgar y Abrir Sobre"}
             </Button>
           </div>
         </div>
       ) : (
-        /* 2. Carta Revelada en su Esplendor Holografico 3D con Animacion de Succion Cinematografica */
+        /* 2. Carta Revelada con Sonido Holografico al Moverla y Animacion de Succion */
         <div
           className="fade-in card-slide-out-slow"
           style={{
@@ -649,7 +690,7 @@ export default function RewardCard({
               Dominio Conceptual Total
             </h2>
             <p style={{ fontSize: "14px", color: "var(--color-text-secondary)", margin: 0 }}>
-              Mueve el cursor o inclina la pantalla para apreciar el efecto holografico.
+              Mueve el cursor o inclina la pantalla para apreciar el efecto holografico y el sonido interactivo.
             </p>
           </div>
 
@@ -721,7 +762,7 @@ export default function RewardCard({
                     textAlign: "center",
                   }}
                 >
-                  <Gift size={64} color="#FBBF24" />
+                  <Sparkles size={64} color="#FBBF24" />
                   <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#FFFFFF" }}>{title}</h3>
                   <p style={{ fontSize: "13px", color: "#94A3B8" }}>{subtitle}</p>
                 </div>
@@ -863,7 +904,7 @@ export default function RewardCard({
             </div>
           </div>
 
-          {/* Botones de Accion con Efecto de Absorcion */}
+          {/* Botones de Accion */}
           <div
             style={{
               display: "flex",
@@ -884,7 +925,7 @@ export default function RewardCard({
                 {isSuctioning
                   ? "Succionando Carta..."
                   : isDownloading
-                  ? "Generando PNG Ultra..."
+                  ? "Generando PNG..."
                   : downloadSuccess
                   ? "Descargar Otra Vez (PNG)"
                   : "Descargar Carta (PNG)"}
