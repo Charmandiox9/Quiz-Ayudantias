@@ -1,15 +1,17 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import Button from "./Button";
 import { audioService } from "../../services/audioService";
+import { certificateService } from "../../services/certificateService";
 import {
   Sparkles,
   RotateCcw,
   ArrowLeft,
   Download,
   Award,
-  Package,
   ShieldCheck,
   Zap,
+  CheckCircle2,
+  ExternalLink,
 } from "lucide-react";
 
 /**
@@ -40,35 +42,55 @@ export default function RewardCard({
   const [imageError, setImageError] = useState(false);
   const [isOpened, setIsOpened] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
+  const [isSuctioning, setIsSuctioning] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [generatedBlobUrl, setGeneratedBlobUrl] = useState(null);
 
   const [pointer, setPointer] = useState({ x: 50, y: 50 });
   const [rotate, setRotate] = useState({ x: 0, y: 0 });
   const [isInteracting, setIsInteracting] = useState(false);
 
+  const downloadBtnRef = useRef(null);
+
   const activeImgSrc = customSrcOverride || mascotSrc || "/assets/ay03_solid.png";
 
-  // ID unico generado una sola vez por resultado de sesion
+  // ID unico generado una sola vez por sesion de completitud
   const uniqueId = useMemo(() => {
     const isSolid = title.toLowerCase().includes("solid");
     return generateUniqueSerial(isSolid ? "SOLID" : "UML");
   }, [title]);
 
+  /**
+   * Accion interactiva de rasgar y abrir el sobre.
+   * Reproduce sonido de rasgado, abre la solapa en 3D y desliza la carta hacia afuera.
+   */
   const handleOpenPack = () => {
     if (isOpening || isOpened) return;
     setIsOpening(true);
+
     try {
-      audioService.playReveal();
+      audioService.playTear();
     } catch {
       // Audio fallback silencioso
     }
+
+    setTimeout(() => {
+      try {
+        audioService.playReveal();
+      } catch {
+        // Audio fallback
+      }
+    }, 280);
+
     setTimeout(() => {
       setIsOpened(true);
       setIsOpening(false);
-    }, 550);
+    }, 720);
   };
 
   const handlePointerMove = (e) => {
+    if (isSuctioning) return;
     const card = e.currentTarget;
     const rect = card.getBoundingClientRect();
     const clientX =
@@ -115,99 +137,155 @@ export default function RewardCard({
   };
 
   /**
-   * Renderizado en Canvas con estampa de numero de serie y descarga con formato PNG garantizado.
-   * Resuelve el problema de nombres con caracteres reservados en Windows (dos puntos, etc.)
+   * Dispara el guardado de la imagen asegurando formato PNG en todos los sistemas operativos.
+   * Prioriza la API nativa de guardado de archivos de Chromium/Windows (showSaveFilePicker).
    */
-  const handleCanvasDownload = () => {
-    if (isDownloading) return;
-    setIsDownloading(true);
-
-    const img = new Image();
-    if (activeImgSrc.startsWith("http://") || activeImgSrc.startsWith("https://")) {
-      img.crossOrigin = "anonymous";
-    }
-    img.src = activeImgSrc;
-
-    img.onload = () => {
+  const saveImageFile = async (pngBlob, filename) => {
+    // 1. Intentar con showSaveFilePicker si el navegador lo soporta (Chrome/Edge en Windows)
+    if (typeof window !== "undefined" && "showSaveFilePicker" in window) {
       try {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-
-        canvas.width = img.naturalWidth || 1792;
-        canvas.height = img.naturalHeight || 2400;
-
-        // 1. Dibujar la ilustracion completa de la carta
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        // 2. Estampar cintillo oficial de certificacion con ID unico
-        const bannerH = Math.round(canvas.height * 0.036);
-        const bannerY = canvas.height - bannerH - Math.round(canvas.height * 0.018);
-        const bannerX = Math.round(canvas.width * 0.06);
-        const bannerW = canvas.width - bannerX * 2;
-
-        ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
-        ctx.strokeStyle = "rgba(245, 158, 11, 0.95)";
-        ctx.lineWidth = 4;
-
-        if (ctx.roundRect) {
-          ctx.beginPath();
-          ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 16);
-          ctx.fill();
-          ctx.stroke();
-        } else {
-          ctx.fillRect(bannerX, bannerY, bannerW, bannerH);
-          ctx.strokeRect(bannerX, bannerY, bannerW, bannerH);
+        const handle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [
+            {
+              description: "Imagen PNG (*.png)",
+              accept: { "image/png": [".png"] },
+            },
+          ],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(pngBlob);
+        await writable.close();
+        return true;
+      } catch (err) {
+        // Si el usuario cancelo el dialogo, no continuar con descarga duplicada
+        if (err && err.name === "AbortError") {
+          return false;
         }
-
-        // Texto del certificado y serial
-        ctx.fillStyle = "#FBBF24";
-        ctx.font = `bold ${Math.round(bannerH * 0.44)}px Consolas, monospace`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-
-        const text = `CERTIFICADO OFICIAL ${uniqueId} | PRECISION: 100% | INGENIERIA DE SOFTWARE 2026-02`;
-        ctx.fillText(text, canvas.width / 2, bannerY + bannerH / 2);
-
-        // 3. Exportar como Blob image/png con nombre de archivo limpio sin caracteres invalidos
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              triggerDirectDownloadFallback();
-              return;
-            }
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            const cleanTitle = title.replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_");
-            const cleanId = uniqueId.replace(/[^a-zA-Z0-9]/g, "");
-            a.href = url;
-            a.download = `Carta_${cleanTitle}_${cleanId}.png`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => {
-              URL.revokeObjectURL(url);
-              setIsDownloading(false);
-            }, 3000);
-          },
-          "image/png"
-        );
-      } catch {
-        triggerDirectDownloadFallback();
+        // Si ocurrio otro error, continuar al fallback
       }
-    };
+    }
 
-    img.onerror = () => {
-      triggerDirectDownloadFallback();
-    };
+    // 2. Metodo estandar mediante elemento ancla con Blob URL explicito
+    const url = URL.createObjectURL(pngBlob);
+    setGeneratedBlobUrl(url);
 
-    function triggerDirectDownloadFallback() {
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = url;
+    a.download = filename;
+    a.setAttribute("download", filename);
+    document.body.appendChild(a);
+    a.click();
+
+    setTimeout(() => {
+      document.body.removeChild(a);
+    }, 1000);
+
+    return true;
+  };
+
+  /**
+   * Renderizado en Canvas con estampa de numero de serie, animacion de succion
+   * y guardado en base de datos cumpliendo con la Ley N° 21.719.
+   */
+  const handleCanvasDownload = async () => {
+    if (isDownloading || isSuctioning) return;
+    setIsDownloading(true);
+    setIsSuctioning(true);
+
+    // Reproducir efecto de succion por el boton
+    try {
+      audioService.playSuction();
+    } catch {
+      // Audio fallback
+    }
+
+    const cleanId = uniqueId.replace(/[^a-zA-Z0-9]/g, "");
+    const cleanFilename = `Carta_IS_${cleanId}.png`;
+
+    try {
+      // 1. Cargar imagen binaria mediante fetch para evitar problemas de taint en Canvas
+      const response = await fetch(activeImgSrc);
+      const sourceBlob = await response.blob();
+      const imgBitmap = await createImageBitmap(sourceBlob);
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      canvas.width = imgBitmap.width || 1792;
+      canvas.height = imgBitmap.height || 2400;
+
+      // Dibujar la ilustracion completa de la carta
+      ctx.drawImage(imgBitmap, 0, 0, canvas.width, canvas.height);
+
+      // Estampar cintillo oficial de certificacion con ID unico
+      const bannerH = Math.round(canvas.height * 0.036);
+      const bannerY = canvas.height - bannerH - Math.round(canvas.height * 0.018);
+      const bannerX = Math.round(canvas.width * 0.06);
+      const bannerW = canvas.width - bannerX * 2;
+
+      ctx.fillStyle = "rgba(15, 23, 42, 0.94)";
+      ctx.strokeStyle = "rgba(245, 158, 11, 0.95)";
+      ctx.lineWidth = 4;
+
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 16);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        ctx.fillRect(bannerX, bannerY, bannerW, bannerH);
+        ctx.strokeRect(bannerX, bannerY, bannerW, bannerH);
+      }
+
+      ctx.fillStyle = "#FBBF24";
+      ctx.font = `bold ${Math.round(bannerH * 0.44)}px Consolas, monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      const text = `CERTIFICADO OFICIAL ${uniqueId} | PRECISION: 100% | INGENIERIA DE SOFTWARE 2026-02`;
+      ctx.fillText(text, canvas.width / 2, bannerY + bannerH / 2);
+
+      // 2. Exportar canvas a un Blob PNG genuino
+      const canvasBlob = await new Promise((resolve) =>
+        canvas.toBlob(resolve, "image/png", 1.0)
+      );
+
+      const finalPngBlob = new Blob([await canvasBlob.arrayBuffer()], {
+        type: "image/png",
+      });
+
+      // 3. Esperar que la animacion de succion hacia el boton culmine
+      await new Promise((resolve) => setTimeout(resolve, 680));
+
+      // 4. Guardar archivo con formato PNG garantizado
+      const saved = await saveImageFile(finalPngBlob, cleanFilename);
+
+      if (saved) {
+        setDownloadSuccess(true);
+
+        // 5. Registrar la descarga en la base de datos (Supabase y localStorage)
+        certificateService.recordDownload({
+          serialId: uniqueId,
+          quizTitle: title,
+          accuracy: accuracy,
+          score: score,
+          nickname: "Estudiante",
+        });
+      }
+    } catch {
+      // Fallback directo en caso de incompatibilidad con Bitmap/Canvas
       const a = document.createElement("a");
       a.href = activeImgSrc;
-      const cleanId = uniqueId.replace(/[^a-zA-Z0-9]/g, "");
-      a.download = `Carta_Coleccionable_${cleanId}.png`;
+      a.download = cleanFilename;
+      a.setAttribute("download", cleanFilename);
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      setDownloadSuccess(true);
+    } finally {
+      setIsSuctioning(false);
       setIsDownloading(false);
     }
   };
@@ -223,10 +301,10 @@ export default function RewardCard({
         padding: "10px 0 24px",
       }}
     >
-      {/* 1. Experiencia del Sobre Booster Pack (Antes de Abrir) */}
+      {/* 1. Experiencia Interactiva de Sobre Booster Pack con Accion Tactil de Apertura */}
       {!isOpened ? (
         <div
-          className="fade-in"
+          className="fade-in envelope-container"
           style={{
             display: "flex",
             flexDirection: "column",
@@ -276,14 +354,14 @@ export default function RewardCard({
             style={{
               fontSize: "14.5px",
               color: "var(--color-text-secondary)",
-              marginBottom: "24px",
+              marginBottom: "20px",
               lineHeight: 1.5,
             }}
           >
-            Contiene la carta holografica oficial de la ayudantia con numero de serie unico de certificacion.
+            Toca el sello dorado o presiona el boton para abrir el sobre y revelar tu carta oficial.
           </p>
 
-          {/* Paquete Foil Metalico Sellado */}
+          {/* Sobre Tactil con Solapa 3D y Sello */}
           <div
             onClick={handleOpenPack}
             className={`card-hover foil-gleam ${isOpening ? "pulse-animation" : ""}`}
@@ -292,50 +370,84 @@ export default function RewardCard({
               width: "100%",
               maxWidth: "320px",
               aspectRatio: "3 / 4.2",
-              borderRadius: "16px",
+              borderRadius: "18px",
               overflow: "hidden",
               cursor: "pointer",
-              boxShadow: "0 20px 35px -8px rgba(30, 39, 97, 0.4), 0 0 25px rgba(245, 158, 11, 0.3)",
-              border: "2px solid rgba(251, 191, 36, 0.8)",
-              background: "linear-gradient(135deg, #1E2761 0%, #2A367D 40%, #1E40AF 70%, #1E2761 100%)",
+              boxShadow: "0 22px 40px -8px rgba(30, 39, 97, 0.45), 0 0 28px rgba(245, 158, 11, 0.35)",
+              border: "2.5px solid rgba(251, 191, 36, 0.85)",
+              background: "linear-gradient(145deg, #0F172A 0%, #1E2761 45%, #1E40AF 80%, #0F172A 100%)",
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
               padding: "16px",
               color: "#FFFFFF",
-              transform: isOpening ? "scale(1.04) rotate(-1deg)" : "none",
-              transition: "all 0.3s ease",
+              transform: isOpening ? "scale(1.05) translateY(-6px)" : "none",
+              transition: "all 0.35s ease",
             }}
           >
-            {/* Costura superior de sellado foil */}
+            {/* Solapa Superior 3D */}
             <div
+              className={`envelope-flap ${isOpening ? "is-open" : ""}`}
               style={{
-                height: "18px",
-                background: "repeating-linear-gradient(90deg, #F59E0B 0px, #F59E0B 3px, #B45309 3px, #B45309 6px)",
-                borderRadius: "6px",
-                opacity: 0.9,
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: "85px",
+                background: "linear-gradient(180deg, #1E293B 0%, #334155 100%)",
+                clipPath: "polygon(0 0, 100% 0, 50% 100%)",
+                borderBottom: "2px solid #FCD34D",
+                zIndex: 3,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
               }}
             />
 
-            {/* Centro del Sobre */}
-            <div style={{ padding: "16px 8px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <div
-                style={{
-                  width: "72px",
-                  height: "72px",
-                  borderRadius: "20px",
-                  backgroundColor: "rgba(255, 255, 255, 0.12)",
-                  backdropFilter: "blur(6px)",
-                  border: "2px solid #FCD34D",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginBottom: "14px",
-                }}
-              >
-                <Package size={38} color="#FBBF24" />
-              </div>
+            {/* Sello de Cera Dorado Central */}
+            <div
+              className={isOpening ? "seal-cracking" : ""}
+              style={{
+                position: "absolute",
+                top: "60px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: "56px",
+                height: "56px",
+                borderRadius: "50%",
+                background: "radial-gradient(circle, #FDE68A 0%, #F59E0B 70%, #B45309 100%)",
+                border: "2px solid #FFFBEB",
+                boxShadow: "0 4px 14px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.7)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 4,
+                cursor: "pointer",
+                transition: "transform 0.2s ease",
+              }}
+            >
+              <Award size={28} color="#78350F" />
+            </div>
 
+            {/* Costura superior de sellado foil */}
+            <div
+              style={{
+                height: "14px",
+                background: "repeating-linear-gradient(90deg, #F59E0B 0px, #F59E0B 4px, #B45309 4px, #B45309 8px)",
+                borderRadius: "4px",
+                opacity: 0.85,
+                zIndex: 2,
+              }}
+            />
+
+            {/* Centro del Sobre con Detalles de Edicion */}
+            <div
+              style={{
+                padding: "54px 10px 10px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                zIndex: 2,
+              }}
+            >
               <span
                 style={{
                   fontSize: "11px",
@@ -343,7 +455,7 @@ export default function RewardCard({
                   letterSpacing: "1.5px",
                   textTransform: "uppercase",
                   color: "#FCD34D",
-                  marginBottom: "4px",
+                  marginBottom: "6px",
                 }}
               >
                 EDICION LIMITADA 2026-02
@@ -351,48 +463,54 @@ export default function RewardCard({
 
               <h3
                 style={{
-                  fontSize: "20px",
+                  fontSize: "21px",
                   fontWeight: 900,
                   color: "#FFFFFF",
                   margin: "0 0 6px",
-                  textShadow: "0 2px 6px rgba(0,0,0,0.6)",
+                  textShadow: "0 2px 8px rgba(0,0,0,0.7)",
                 }}
               >
                 Sobre de Maestria
               </h3>
 
-              <p style={{ fontSize: "12px", color: "#CBD5E1", margin: 0 }}>
+              <p style={{ fontSize: "12.5px", color: "#CBD5E1", margin: 0, textAlign: "center" }}>
                 {title}
               </p>
             </div>
 
-            {/* Costura inferior de sellado foil */}
-            <div>
+            {/* Indicador de Rasgar Precinto */}
+            <div style={{ zIndex: 2 }}>
               <div
                 style={{
-                  padding: "8px",
+                  padding: "9px 12px",
                   backgroundColor: "rgba(245, 158, 11, 0.25)",
-                  borderRadius: "8px",
+                  borderRadius: "10px",
                   border: "1px dashed #FCD34D",
                   marginBottom: "10px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
                 }}
               >
+                <Zap size={15} color="#FDE68A" />
                 <span style={{ fontSize: "12px", fontWeight: 800, color: "#FDE68A" }}>
-                  Toca aqui para raspar y abrir
+                  {isOpening ? "Abriendo sobre..." : "Toca el sello o aqui para rasgar"}
                 </span>
               </div>
+
               <div
                 style={{
-                  height: "18px",
-                  background: "repeating-linear-gradient(90deg, #F59E0B 0px, #F59E0B 3px, #B45309 3px, #B45309 6px)",
-                  borderRadius: "6px",
-                  opacity: 0.9,
+                  height: "14px",
+                  background: "repeating-linear-gradient(90deg, #F59E0B 0px, #F59E0B 4px, #B45309 4px, #B45309 8px)",
+                  borderRadius: "4px",
+                  opacity: 0.85,
                 }}
               />
             </div>
           </div>
 
-          <div style={{ marginTop: "24px" }}>
+          <div style={{ marginTop: "22px" }}>
             <Button
               variant="accent"
               size="lg"
@@ -405,9 +523,9 @@ export default function RewardCard({
           </div>
         </div>
       ) : (
-        /* 2. Carta Revelada en su Esplendor Holografico 3D */
+        /* 2. Carta Revelada en su Esplendor Holografico 3D con Animacion de Succion */
         <div
-          className="fade-in"
+          className="fade-in card-slide-out"
           style={{
             display: "flex",
             flexDirection: "column",
@@ -457,7 +575,7 @@ export default function RewardCard({
             </p>
           </div>
 
-          {/* Contenedor 3D de la Carta */}
+          {/* Contenedor 3D de la Carta con Animacion de Succion */}
           <div
             style={{
               perspective: "1200px",
@@ -474,7 +592,7 @@ export default function RewardCard({
               onMouseEnter={() => setIsInteracting(true)}
               onMouseLeave={handlePointerLeave}
               onTouchEnd={handlePointerLeave}
-              className="card-pop-up"
+              className={`card-pop-up ${isSuctioning ? "card-suction" : ""}`}
               style={{
                 position: "relative",
                 width: "100%",
@@ -484,9 +602,11 @@ export default function RewardCard({
                 overflow: "hidden",
                 cursor: "pointer",
                 transformStyle: "preserve-3d",
-                transform: `rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale3d(${isInteracting ? 1.04 : 1}, ${isInteracting ? 1.04 : 1}, ${isInteracting ? 1.04 : 1})`,
-                transition: isInteracting ? "transform 0.08s ease-out" : "all 0.5s ease",
-                boxShadow: isInteracting
+                transform: !isSuctioning
+                  ? `rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale3d(${isInteracting ? 1.04 : 1}, ${isInteracting ? 1.04 : 1}, ${isInteracting ? 1.04 : 1})`
+                  : undefined,
+                transition: isInteracting && !isSuctioning ? "transform 0.08s ease-out" : "all 0.5s ease",
+                boxShadow: isInteracting && !isSuctioning
                   ? `0 30px 60px -10px rgba(0, 0, 0, 0.45), ${rotate.y * -2}px ${rotate.x * 2}px 35px rgba(217, 119, 6, 0.4)`
                   : "0 20px 40px -8px rgba(0, 0, 0, 0.28)",
                 border: "2.5px solid rgba(251, 191, 36, 0.85)",
@@ -665,7 +785,7 @@ export default function RewardCard({
             </div>
           </div>
 
-          {/* Botones de Accion */}
+          {/* Botones de Accion con Efecto de Absorcion */}
           <div
             style={{
               display: "flex",
@@ -674,16 +794,46 @@ export default function RewardCard({
               flexWrap: "wrap",
             }}
           >
-            {/* Boton Descargar con Canvas + Estampado de ID */}
-            <Button
-              variant="accent"
-              icon={Download}
-              onClick={handleCanvasDownload}
-              disabled={isDownloading}
-              className="touch-btn"
-            >
-              {isDownloading ? "Generando PNG..." : "Descargar Carta (PNG)"}
-            </Button>
+            {/* Boton Descargar con Succion, Canvas y Registro de Timestamp */}
+            <div ref={downloadBtnRef} className={isSuctioning ? "btn-absorb" : ""}>
+              <Button
+                variant="accent"
+                icon={downloadSuccess ? CheckCircle2 : Download}
+                onClick={handleCanvasDownload}
+                disabled={isDownloading || isSuctioning}
+                className="touch-btn"
+              >
+                {isSuctioning
+                  ? "Succionando Carta..."
+                  : isDownloading
+                  ? "Generando PNG..."
+                  : downloadSuccess
+                  ? "Descargar Otra Vez (PNG)"
+                  : "Descargar Carta (PNG)"}
+              </Button>
+            </div>
+
+            {/* Enlace de contingencia para abrir en nueva pestaña si el navegador bloquea la descarga */}
+            {generatedBlobUrl && (
+              <a
+                href={generatedBlobUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  color: "var(--color-primary)",
+                  textDecoration: "underline",
+                  padding: "8px 12px",
+                }}
+              >
+                <ExternalLink size={15} />
+                Abrir imagen PNG en pestana
+              </a>
+            )}
 
             {onRestart && (
               <Button variant="secondary" icon={RotateCcw} onClick={onRestart} className="touch-btn">
