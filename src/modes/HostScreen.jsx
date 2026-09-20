@@ -1,26 +1,29 @@
 import React, { useState, useEffect, useRef } from "react";
 import { RealtimeQuizService } from "../services/realtimeService";
+import { audioService } from "../services/audioService";
 import { GAME_PHASES, OPTION_LABELS } from "../config/constants";
-import Card from "../components/common/Card";
 import Button from "../components/common/Button";
+import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
 import QRCodeDisplay from "../components/common/QRCodeDisplay";
-import TimerRing from "../components/quiz/TimerRing";
+import QuestionCard from "../components/quiz/QuestionCard";
 import VoteBars from "../components/quiz/VoteBars";
 import Leaderboard from "../components/quiz/Leaderboard";
-import QuestionCard from "../components/quiz/QuestionCard";
+import TimerRing from "../components/quiz/TimerRing";
 import {
-  Monitor,
-  Users,
-  Play,
-  ArrowRight,
-  Eye,
-  Trophy,
-  RotateCcw,
   ArrowLeft,
+  ArrowRight,
+  Play,
+  RotateCcw,
+  Users,
+  Trophy,
+  Eye,
   QrCode,
   X,
-  Smartphone,
+  Copy,
+  Check,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 
 export default function HostScreen({ ayudantia, roomCode, onExit }) {
@@ -30,11 +33,14 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
   const [votes, setVotes] = useState({});
   const [remainingSeconds, setRemainingSeconds] = useState(ayudantia.defaultTimerSeconds || 60);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
 
   const serviceRef = useRef(null);
   const playersRef = useRef([]);
   const currentQuestionRef = useRef(ayudantia.questions[0]);
   const gameStateRef = useRef({ phase: GAME_PHASES.LOBBY, index: 0 });
+  const questionStartTimeRef = useRef(0);
 
   const currentQuestion = ayudantia.questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === ayudantia.questions.length - 1;
@@ -54,10 +60,20 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
       : "https://quiz-ayudantia-ingenieria-software.vercel.app";
   const joinUrl = `${origin}/?join=${roomCode}`;
 
+  const handleToggleAudio = () => {
+    const muted = audioService.toggleMute();
+    setIsAudioMuted(muted);
+  };
+
   const handleTimeUp = () => {
+    audioService.stopMusic();
+    audioService.playTimeUp();
     setPhase(GAME_PHASES.VOTES);
     if (serviceRef.current) {
-      serviceRef.current.broadcastState({ phase: GAME_PHASES.VOTES });
+      serviceRef.current.broadcastState({
+        phase: GAME_PHASES.VOTES,
+        players: playersRef.current,
+      });
     }
   };
 
@@ -66,6 +82,9 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
 
     const interval = setInterval(() => {
       setRemainingSeconds((prev) => {
+        if (prev <= 6 && prev > 1) {
+          audioService.playTick();
+        }
         if (prev <= 1) {
           clearInterval(interval);
           handleTimeUp();
@@ -101,6 +120,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
                 id: item.id || Math.random().toString(36).substring(2, 9),
                 name: item.name,
                 score: item.score || 0,
+                lastEarnedPoints: 0,
               });
               updated = true;
             } else if (item.id && existing.id !== item.id) {
@@ -130,6 +150,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
               totalQuestions: ayudantia.questions.length,
               correctAnswerIndex:
                 gameStateRef.current.phase === GAME_PHASES.REVEAL ? currentQ.ans : null,
+              players: playersRef.current,
             });
           }
 
@@ -149,11 +170,12 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
               id: player.id || Math.random().toString(36).substring(2, 9),
               name: player.name,
               score: 0,
+              lastEarnedPoints: 0,
             },
           ];
         });
       },
-      onPlayerVote: ({ playerName, optionLabel }) => {
+      onPlayerVote: ({ playerName, optionLabel, playerId }) => {
         setVotes((prev) => ({
           ...prev,
           [optionLabel]: (prev[optionLabel] || 0) + 1,
@@ -161,28 +183,50 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
 
         const currentQ = currentQuestionRef.current;
         const correctLabel = OPTION_LABELS[currentQ.ans];
-        if (optionLabel === correctLabel) {
-          setPlayers((prev) =>
-            prev.map((p) =>
-              p.name.toLowerCase() === playerName.toLowerCase()
-                ? { ...p, score: p.score + 100 }
-                : p
-            )
-          );
+        const isCorrect = optionLabel === correctLabel;
+
+        let pointsEarned = 0;
+        if (isCorrect) {
+          const now = Date.now();
+          const elapsedMs = Math.max(0, now - questionStartTimeRef.current);
+          const totalMs = (ayudantia.defaultTimerSeconds || 60) * 1000;
+          const remainingFraction = Math.max(0, Math.min(1, 1 - (elapsedMs / totalMs)));
+          // Formula dinamica: 500 base + 500 proporcional al tiempo restante
+          pointsEarned = Math.round(500 + 500 * remainingFraction);
         }
+
+        setPlayers((prev) => {
+          const updated = prev.map((p) => {
+            const isMatch = (playerId && p.id === playerId) || (p.name.toLowerCase() === playerName.toLowerCase());
+            if (isMatch) {
+              return {
+                ...p,
+                score: p.score + pointsEarned,
+                lastEarnedPoints: pointsEarned,
+                lastOption: optionLabel,
+              };
+            }
+            return p;
+          });
+          playersRef.current = updated;
+          return updated;
+        });
       },
     });
 
     return () => {
+      audioService.cleanup();
       service.unsubscribe();
     };
-  }, [roomCode, ayudantia.questions.length]);
+  }, [roomCode, ayudantia.questions.length, ayudantia.defaultTimerSeconds]);
 
   const handleStartGame = () => {
     setCurrentQuestionIndex(0);
     setVotes({});
     setRemainingSeconds(ayudantia.defaultTimerSeconds || 60);
     setPhase(GAME_PHASES.QUESTION);
+    questionStartTimeRef.current = Date.now();
+    audioService.startQuestionMusic();
 
     if (serviceRef.current) {
       serviceRef.current.broadcastNext({
@@ -194,24 +238,32 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
   };
 
   const handleRevealAnswer = () => {
+    audioService.stopMusic();
+    audioService.playReveal();
     setPhase(GAME_PHASES.REVEAL);
     if (serviceRef.current) {
       serviceRef.current.broadcastState({
         phase: GAME_PHASES.REVEAL,
         correctAnswerIndex: currentQuestion.ans,
+        players: playersRef.current,
       });
     }
   };
 
   const handleShowLeaderboard = () => {
+    audioService.stopMusic();
     setPhase(GAME_PHASES.LEADERBOARD);
     if (serviceRef.current) {
-      serviceRef.current.broadcastState({ phase: GAME_PHASES.LEADERBOARD });
+      serviceRef.current.broadcastState({
+        phase: GAME_PHASES.LEADERBOARD,
+        players: playersRef.current,
+      });
     }
   };
 
   const handleNextQuestion = () => {
     if (isLastQuestion) {
+      audioService.stopMusic();
       setPhase(GAME_PHASES.FINISHED);
       if (serviceRef.current) {
         serviceRef.current.broadcastEnd({
@@ -226,6 +278,8 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
     setVotes({});
     setRemainingSeconds(ayudantia.defaultTimerSeconds || 60);
     setPhase(GAME_PHASES.QUESTION);
+    questionStartTimeRef.current = Date.now();
+    audioService.startQuestionMusic();
 
     if (serviceRef.current) {
       serviceRef.current.broadcastNext({
@@ -236,21 +290,37 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
     }
   };
 
-  const totalVotesCount = Object.values(votes).reduce((sum, val) => sum + val, 0);
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(joinUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const totalVotesCount = Object.values(votes).reduce((sum, v) => sum + v, 0);
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#F8FAFC", padding: "24px 20px" }}>
-      <header style={{ maxWidth: "1100px", margin: "0 auto 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div style={{ minHeight: "100vh", backgroundColor: "var(--color-bg)", padding: "24px 20px" }}>
+      <header style={{ maxWidth: "1200px", margin: "0 auto 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <Button variant="secondary" size="sm" icon={ArrowLeft} onClick={onExit}>
             Salir al Menu
           </Button>
-          <span style={{ fontWeight: 700, color: "#1E2761", fontSize: "16px" }}>
+          <span style={{ fontWeight: 800, color: "var(--color-primary)", fontSize: "18px" }}>
             {ayudantia.title}
           </span>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={isAudioMuted ? VolumeX : Volume2}
+            onClick={handleToggleAudio}
+            title={isAudioMuted ? "Activar musica y efectos de sonido" : "Silenciar audio"}
+          >
+            {isAudioMuted ? "Audio: Mute" : "Audio: ON"}
+          </Button>
+
           <Button
             variant="secondary"
             size="sm"
@@ -260,12 +330,14 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
           >
             QR Sala
           </Button>
+
           <Badge variant="amber" icon={Users}>
-            {players.length} conectados
+            <span style={{ fontSize: "15px", fontWeight: 700 }}>{players.length} conectados</span>
           </Badge>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", backgroundColor: "#FFFFFF", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
-            <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>SALA:</span>
-            <span style={{ fontFamily: "Consolas, monospace", fontWeight: 800, fontSize: "16px", color: "#1E2761" }}>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 16px", backgroundColor: "var(--color-surface)", borderRadius: "8px", border: "1px solid var(--color-border)" }}>
+            <span style={{ fontSize: "13px", color: "var(--color-text-secondary)", fontWeight: 700 }}>SALA:</span>
+            <span style={{ fontFamily: "Consolas, monospace", fontWeight: 900, fontSize: "20px", color: "var(--color-primary)" }}>
               {roomCode}
             </span>
           </div>
@@ -281,11 +353,11 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: "rgba(15, 23, 42, 0.7)",
+            backgroundColor: "rgba(15, 23, 42, 0.75)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 1000,
+            zIndex: 9999,
             padding: "20px",
           }}
           onClick={() => setShowQrModal(false)}
@@ -293,111 +365,131 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
           <div
             style={{
               backgroundColor: "#FFFFFF",
-              borderRadius: "20px",
-              padding: "28px",
-              maxWidth: "420px",
+              borderRadius: "16px",
+              padding: "32px",
+              maxWidth: "460px",
               width: "100%",
+              textAlign: "center",
               boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.2)",
-              position: "relative",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              type="button"
-              onClick={() => setShowQrModal(false)}
-              style={{
-                position: "absolute",
-                top: "16px",
-                right: "16px",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "#64748B",
-              }}
-            >
-              <X size={20} />
-            </button>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 style={{ fontSize: "22px", fontWeight: 800, color: "var(--color-primary)" }}>
+                Unirse a la Sala
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowQrModal(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#64748B" }}
+              >
+                <X size={24} />
+              </button>
+            </div>
 
-            <h3 style={{ fontSize: "20px", fontWeight: 800, color: "#1E2761", marginBottom: "4px", textAlign: "center" }}>
-              Unirse al Quiz
-            </h3>
-            <p style={{ fontSize: "13px", color: "#64748B", textAlign: "center", marginBottom: "16px" }}>
-              Escanea el codigo o entra directamente desde tu celular
+            <div style={{ display: "flex", justifyContent: "center", margin: "16px 0" }}>
+              <QRCodeDisplay value={joinUrl} size={240} />
+            </div>
+
+            <p style={{ fontSize: "16px", color: "var(--color-text-secondary)", marginBottom: "16px" }}>
+              Escanea con la camara del telefono para ingresar sin escribir el PIN.
             </p>
 
-            <QRCodeDisplay url={joinUrl} pin={roomCode} size={200} />
-
-            <div style={{ marginTop: "16px", textAlign: "center" }}>
-              <Button variant="secondary" fullWidth onClick={() => setShowQrModal(false)}>
-                Cerrar Ventana
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 14px", backgroundColor: "#F8FAFC", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
+              <span style={{ fontSize: "13px", color: "var(--color-primary)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                {joinUrl}
+              </span>
+              <Button variant="secondary" size="sm" icon={copiedLink ? Check : Copy} onClick={handleCopyLink}>
+                {copiedLink ? "Copiado" : "Copiar"}
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      <main style={{ maxWidth: "1100px", margin: "0 auto" }}>
-        {/* 1. Fase Lobby */}
+      <main style={{ maxWidth: "1200px", margin: "0 auto" }}>
+        {/* 1. Fase de Lobby */}
         {phase === GAME_PHASES.LOBBY && (
-          <Card style={{ padding: "40px 32px" }}>
-            <div style={{ textAlign: "center", marginBottom: "32px" }}>
-              <div style={{ width: "56px", height: "56px", borderRadius: "14px", backgroundColor: "#EEF2FF", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
-                <Monitor size={28} color="#1E2761" />
-              </div>
-              <h2 style={{ fontSize: "28px", fontWeight: 900, color: "#1E2761", marginBottom: "6px" }}>
-                Sala de Espera del Quiz
+          <Card style={{ padding: "36px 32px" }}>
+            <div style={{ textAlign: "center", marginBottom: "28px" }}>
+              <span style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-accent)", textTransform: "uppercase", letterSpacing: "1px" }}>
+                Sala de Espera Docente
+              </span>
+              <h2 style={{ fontSize: "36px", fontWeight: 900, color: "var(--color-primary)", marginTop: "4px" }}>
+                {ayudantia.title}
               </h2>
-              <p style={{ color: "#64748B", fontSize: "16px" }}>
-                Escanea el codigo QR con tu celular o ingresa la direccion web y el PIN para participar:
+              <p style={{ color: "var(--color-text-secondary)", fontSize: "18px", marginTop: "8px" }}>
+                {ayudantia.subtitle}
               </p>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "32px", alignItems: "center", marginBottom: "36px" }}>
-              {/* Columna Izquierda: Generador de QR */}
-              <div style={{ display: "flex", justifyContent: "center" }}>
-                <QRCodeDisplay url={joinUrl} pin={roomCode} size={220} />
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                gap: "36px",
+                alignItems: "center",
+                marginBottom: "36px",
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "20px", backgroundColor: "var(--color-bg)", borderRadius: "16px", border: "1px solid var(--color-border)" }}>
+                <QRCodeDisplay value={joinUrl} size={250} />
+                <div style={{ marginTop: "16px", textAlign: "center" }}>
+                  <span style={{ fontSize: "14px", color: "var(--color-text-muted)", fontWeight: 600 }}>O ingresa directamente en:</span>
+                  <div style={{ marginTop: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ fontFamily: "Consolas, monospace", fontWeight: 700, color: "var(--color-primary)", fontSize: "14px" }}>
+                      {joinUrl}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyLink}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "#2563EB", display: "flex", alignItems: "center" }}
+                      title="Copiar enlace directo"
+                    >
+                      {copiedLink ? <Check size={16} /> : <Copy size={16} />}
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {/* Columna Derecha: Instrucciones y Alumnos Conectados */}
-              <div>
-                <div style={{ padding: "18px", backgroundColor: "#F8FAFC", borderRadius: "12px", border: "1px solid #E2E8F0", marginBottom: "20px" }}>
-                  <h4 style={{ fontSize: "14px", fontWeight: 700, color: "#1E2761", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
-                    <Smartphone size={18} color="#D97706" />
-                    <span>Instrucciones para los estudiantes:</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                <div style={{ padding: "18px 22px", backgroundColor: "#EFF6FF", borderRadius: "12px", border: "1px solid #BFDBFE" }}>
+                  <h4 style={{ fontSize: "18px", fontWeight: 800, color: "#1E40AF", marginBottom: "8px" }}>
+                    Instrucciones para los Estudiantes:
                   </h4>
-                  <ol style={{ margin: 0, paddingLeft: "20px", fontSize: "13.5px", color: "#475569", lineHeight: 1.6 }}>
-                    <li>Apunta la camara de tu celular al codigo QR o ingresa la URL mostrada.</li>
-                    <li>Verifica o edita tu apodo (o presiona Aleatorio).</li>
+                  <ol style={{ paddingLeft: "20px", fontSize: "16px", color: "#1E3A8A", display: "flex", flexDirection: "column", gap: "6px", lineHeight: 1.4 }}>
+                    <li>Escanea el codigo QR proyectado con tu celular.</li>
+                    <li>Personaliza o conserva tu apodo anonimo asignado.</li>
                     <li>Presiona <strong>Entrar al Quiz</strong> para votar en vivo.</li>
                   </ol>
                 </div>
 
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                    <h4 style={{ fontSize: "15px", fontWeight: 700, color: "#334155" }}>
+                    <h4 style={{ fontSize: "18px", fontWeight: 800, color: "var(--color-text-main)" }}>
                       Estudiantes Conectados ({players.length}):
                     </h4>
                     <Badge variant={players.length > 0 ? "success" : "neutral"}>
-                      {players.length > 0 ? "Listo para iniciar" : "Esperando alumnos"}
+                      <span style={{ fontSize: "14px" }}>{players.length > 0 ? "Listo para iniciar" : "Esperando alumnos"}</span>
                     </Badge>
                   </div>
 
                   {players.length === 0 ? (
-                    <div style={{ padding: "24px", backgroundColor: "#F8FAFC", borderRadius: "10px", border: "1px dashed #CBD5E1", color: "#64748B", fontSize: "14px", textAlign: "center" }}>
+                    <div style={{ padding: "28px", backgroundColor: "var(--color-bg)", borderRadius: "10px", border: "1px dashed var(--color-border)", color: "var(--color-text-muted)", fontSize: "16px", textAlign: "center" }}>
                       Aun no hay estudiantes conectados. Escanea el codigo para comenzar.
                     </div>
                   ) : (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", maxHeight: "150px", overflowY: "auto", padding: "4px" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", maxHeight: "160px", overflowY: "auto", padding: "4px" }}>
                       {players.map((p) => (
                         <span
                           key={p.name}
                           style={{
-                            padding: "6px 14px",
+                            padding: "8px 16px",
                             backgroundColor: "#EEF2FF",
-                            color: "#1E2761",
+                            color: "var(--color-primary)",
                             fontWeight: 700,
-                            borderRadius: "16px",
-                            fontSize: "13px",
+                            borderRadius: "20px",
+                            fontSize: "15px",
                             border: "1px solid #C7D2FE",
                           }}
                         >
@@ -410,7 +502,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
               </div>
             </div>
 
-            <div style={{ textAlign: "center", borderTop: "1px solid #E2E8F0", paddingTop: "24px" }}>
+            <div style={{ textAlign: "center", borderTop: "1px solid var(--color-border)", paddingTop: "24px" }}>
               <Button
                 variant="accent"
                 size="lg"
@@ -427,17 +519,22 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
         {/* 2. Fase de Pregunta y Votacion */}
         {phase === GAME_PHASES.QUESTION && (
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
               <Badge variant="navy">
-                Pregunta {currentQuestionIndex + 1} de {ayudantia.questions.length}
+                <span style={{ fontSize: "16px", fontWeight: 700 }}>
+                  Pregunta {currentQuestionIndex + 1} de {ayudantia.questions.length}
+                </span>
               </Badge>
               <TimerRing
                 remainingSeconds={remainingSeconds}
                 totalSeconds={ayudantia.defaultTimerSeconds || 60}
-                size={84}
+                size={96}
+                strokeWidth={7}
               />
               <Badge variant="amber" icon={Users}>
-                {totalVotesCount} / {players.length} votos
+                <span style={{ fontSize: "16px", fontWeight: 700 }}>
+                  {totalVotesCount} / {players.length} votos
+                </span>
               </Badge>
             </div>
 
@@ -460,9 +557,13 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
         {/* 3. Fase de Votos Recibidos */}
         {phase === GAME_PHASES.VOTES && (
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
-              <Badge variant="neutral">Tiempo Finalizado</Badge>
-              <Badge variant="amber">Votos emitidos: {totalVotesCount}</Badge>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <Badge variant="neutral">
+                <span style={{ fontSize: "16px" }}>Tiempo Finalizado</span>
+              </Badge>
+              <Badge variant="amber">
+                <span style={{ fontSize: "16px" }}>Votos emitidos: {totalVotesCount}</span>
+              </Badge>
             </div>
 
             <QuestionCard
@@ -473,7 +574,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
               showExplanation={false}
             />
 
-            <Card title="Distribucion de Respuestas" subtitle="Votos emitidos por los estudiantes en la sala" style={{ marginTop: "20px" }}>
+            <Card title="Distribucion de Respuestas" subtitle="Votos emitidos por los estudiantes en la sala" style={{ marginTop: "24px", maxWidth: "980px", margin: "24px auto 0" }}>
               <VoteBars votes={votes} totalVotes={totalVotesCount} />
             </Card>
 
@@ -488,9 +589,13 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
         {/* 4. Fase de Revelacion */}
         {phase === GAME_PHASES.REVEAL && (
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
-              <Badge variant="success">Respuesta Oficial y Fundamento</Badge>
-              <Badge variant="amber">Votos emitidos: {totalVotesCount}</Badge>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <Badge variant="success">
+                <span style={{ fontSize: "16px" }}>Respuesta Oficial y Fundamento</span>
+              </Badge>
+              <Badge variant="amber">
+                <span style={{ fontSize: "16px" }}>Votos emitidos: {totalVotesCount}</span>
+              </Badge>
             </div>
 
             <QuestionCard
@@ -501,7 +606,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
               showExplanation={true}
             />
 
-            <Card title="Distribucion de Respuestas" subtitle="La barra verde senala la opcion correcta" style={{ marginTop: "20px" }}>
+            <Card title="Distribucion de Respuestas" subtitle="La barra verde senala la opcion correcta" style={{ marginTop: "24px", maxWidth: "980px", margin: "24px auto 0" }}>
               <VoteBars
                 votes={votes}
                 totalVotes={totalVotesCount}
@@ -521,11 +626,11 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
         {/* 5. Fase de Tabla de Posiciones */}
         {phase === GAME_PHASES.LEADERBOARD && (
           <div>
-            <Card title="Tabla de Posiciones Parcial" subtitle="Puntajes acumulados tras la pregunta actual">
+            <Card title="Tabla de Posiciones Parcial" subtitle="Puntajes dinamicos calculados segun tiempo y precision" style={{ maxWidth: "860px", margin: "0 auto" }}>
               <Leaderboard players={players} />
             </Card>
 
-            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end" }}>
+            <div style={{ marginTop: "28px", display: "flex", justifyContent: "flex-end" }}>
               <Button variant="accent" icon={ArrowRight} onClick={handleNextQuestion}>
                 {isLastQuestion ? "Ver Podio Final" : "Siguiente Pregunta"}
               </Button>
@@ -536,23 +641,23 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
         {/* 6. Fase Final y Podio */}
         {phase === GAME_PHASES.FINISHED && (
           <div>
-            <Card style={{ textAlign: "center", padding: "40px 24px", marginBottom: "24px" }}>
-              <div style={{ width: "64px", height: "64px", borderRadius: "16px", backgroundColor: "#FEF3C7", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-                <Trophy size={36} color="#D97706" />
+            <Card style={{ textAlign: "center", padding: "44px 28px", marginBottom: "28px", maxWidth: "860px", margin: "0 auto 28px" }}>
+              <div style={{ width: "72px", height: "72px", borderRadius: "18px", backgroundColor: "#FEF3C7", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
+                <Trophy size={42} color="#D97706" />
               </div>
-              <h2 style={{ fontSize: "28px", fontWeight: 900, color: "#1E2761", marginBottom: "8px" }}>
+              <h2 style={{ fontSize: "32px", fontWeight: 900, color: "var(--color-primary)", marginBottom: "8px" }}>
                 Quiz Finalizado con Exito
               </h2>
-              <p style={{ color: "#64748B", fontSize: "16px" }}>
+              <p style={{ color: "var(--color-text-secondary)", fontSize: "18px" }}>
                 Felicitaciones a todos los participantes de la ayudantia.
               </p>
             </Card>
 
-            <Card title="Podio Final y Clasificacion" subtitle="Resultados definitivos de la sesion">
-              <Leaderboard players={players} />
+            <Card title="Podio Final y Clasificacion" subtitle="Resultados definitivos de la sesion" style={{ maxWidth: "860px", margin: "0 auto" }}>
+              <Leaderboard players={players} maxEntries={10} />
             </Card>
 
-            <div style={{ marginTop: "24px", display: "flex", justifyContent: "center", gap: "12px" }}>
+            <div style={{ marginTop: "28px", display: "flex", justifyContent: "center", gap: "14px" }}>
               <Button variant="primary" icon={RotateCcw} onClick={handleStartGame}>
                 Reiniciar Mismo Quiz
               </Button>

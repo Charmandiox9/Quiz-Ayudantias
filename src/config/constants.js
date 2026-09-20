@@ -1,7 +1,8 @@
 export const APP_CONFIG = {
   appName: "Quiz Ayudantia Ingenieria de Software",
   defaultTimerSeconds: 60,
-  pointsPerCorrectAnswer: 1000,
+  minPointsPerCorrectAnswer: 500,
+  maxPointsPerCorrectAnswer: 1000,
   maxNicknameLength: 15,
   minNicknameLength: 2,
   defaultRoomCode: "AYUDANTIA2",
@@ -10,6 +11,7 @@ export const APP_CONFIG = {
 export const GAME_PHASES = {
   LOBBY: "lobby",
   QUESTION: "question",
+  VOTES: "votes",
   REVEAL: "reveal",
   LEADERBOARD: "leaderboard",
   FINISHED: "finished",

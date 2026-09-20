@@ -3,19 +3,21 @@ import QRCode from "qrcode";
 import { Copy, Check } from "lucide-react";
 
 export default function QRCodeDisplay({
+  value,
   url,
   pin,
   size = 200,
-  showCopy = true,
-  showUrl = true,
+  showCopy = false,
+  showUrl = false,
 }) {
+  const targetUrl = value || url;
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (!url) return;
+    if (!targetUrl) return;
 
-    QRCode.toDataURL(url, {
+    QRCode.toDataURL(targetUrl, {
       width: size * 2,
       margin: 1,
       color: {
@@ -29,15 +31,15 @@ export default function QRCodeDisplay({
       .catch((err) => {
         console.error("Error al generar codigo QR:", err);
       });
-  }, [url, size]);
+  }, [targetUrl, size]);
 
   const handleCopy = async () => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(url);
+        await navigator.clipboard.writeText(targetUrl);
       } else {
         const textarea = document.createElement("textarea");
-        textarea.value = url;
+        textarea.value = targetUrl;
         document.body.appendChild(textarea);
         textarea.select();
         document.execCommand("copy");
@@ -116,7 +118,7 @@ export default function QRCodeDisplay({
             marginBottom: "12px",
           }}
         >
-          {url}
+          {targetUrl}
         </div>
       )}
 

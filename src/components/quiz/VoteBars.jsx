@@ -16,10 +16,12 @@ export default function VoteBars({
       style={{
         display: 'grid',
         gridTemplateColumns: `repeat(${labels.length}, 1fr)`,
-        gap: '12px',
+        gap: '16px',
         alignItems: 'flex-end',
         width: '100%',
-        padding: '16px 0',
+        maxWidth: '980px',
+        margin: '0 auto',
+        padding: '18px 0',
       }}
     >
       {labels.map((label, index) => {
@@ -27,7 +29,7 @@ export default function VoteBars({
         const percentage = totalVotes > 0 ? (count / totalVotes) * 100 : 0;
         const isCorrect = isRevealed && index === correctAnswerIndex;
         const baseColor = OPTION_COLORS[label] || '#475569';
-        const displayColor = isCorrect ? '#16A34A' : baseColor;
+        const displayColor = isCorrect ? 'var(--color-success)' : baseColor;
 
         return (
           <div
@@ -36,15 +38,15 @@ export default function VoteBars({
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '8px',
+              gap: '10px',
             }}
           >
             <span
               style={{
                 fontFamily: 'Consolas, monospace',
-                fontSize: '14px',
-                fontWeight: 700,
-                color: isRevealed && !isCorrect ? '#94A3B8' : displayColor,
+                fontSize: '18px',
+                fontWeight: 800,
+                color: isRevealed && !isCorrect ? 'var(--color-text-muted)' : displayColor,
               }}
             >
               {count}
@@ -53,12 +55,12 @@ export default function VoteBars({
             <div
               style={{
                 width: '100%',
-                height: '110px',
-                backgroundColor: '#F1F5F9',
-                borderRadius: '8px',
+                height: '140px',
+                backgroundColor: 'var(--color-surface-muted)',
+                borderRadius: '10px',
                 position: 'relative',
                 overflow: 'hidden',
-                border: '1px solid #E2E8F0',
+                border: '1px solid var(--color-border)',
               }}
             >
               <div
@@ -69,7 +71,7 @@ export default function VoteBars({
                   right: 0,
                   height: `${Math.max(percentage, count > 0 ? 6 : 0)}%`,
                   backgroundColor: displayColor,
-                  borderRadius: '6px 6px 0 0',
+                  borderRadius: '8px 8px 0 0',
                   opacity: isRevealed && !isCorrect ? 0.35 : 1,
                   transition: 'height 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease',
                 }}
@@ -78,22 +80,23 @@ export default function VoteBars({
 
             <div
               style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '8px',
-                backgroundColor: isCorrect ? '#DCFCE7' : '#FFFFFF',
-                border: `2px solid ${displayColor}`,
+                width: '48px',
+                height: '48px',
+                borderRadius: '10px',
+                backgroundColor: isCorrect ? 'var(--color-success-bg)' : 'var(--color-surface)',
+                border: `3px solid ${displayColor}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontWeight: 800,
-                fontSize: '16px',
+                fontWeight: 900,
+                fontSize: '20px',
+                fontFamily: 'Consolas, monospace',
                 color: displayColor,
                 opacity: isRevealed && !isCorrect ? 0.5 : 1,
                 transition: 'all 0.3s ease',
               }}
             >
-              {isCorrect ? <Check size={20} strokeWidth={3} /> : label}
+              {isCorrect ? <Check size={26} strokeWidth={3.5} /> : label}
             </div>
           </div>
         );

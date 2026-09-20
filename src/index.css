@@ -17,8 +17,28 @@
   --color-danger: #DC2626;
   --color-danger-bg: #FEE2E2;
 
+  --color-option-a: #DC2626;
+  --color-option-b: #2563EB;
+  --color-option-c: #D97706;
+  --color-option-d: #059669;
+
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'Consolas', 'Menlo', monospace;
+
+  --text-xs: 13px;
+  --text-sm: 15px;
+  --text-base: 17px;
+  --text-md: 19px;
+  --text-lg: 22px;
+  --text-xl: 26px;
+  --text-2xl: 30px;
+  --text-3xl: 38px;
+  --text-4xl: 48px;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.45;
+  --leading-relaxed: 1.6;
+
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
@@ -37,7 +57,7 @@ body {
   font-family: var(--font-sans);
   background-color: var(--color-bg);
   color: var(--color-text-main);
-  line-height: 1.5;
+  line-height: var(--leading-normal);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
 }
@@ -62,4 +82,28 @@ button {
 
 .pulse-animation {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.projector-card {
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.projector-question {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  color: var(--color-text-main);
+  line-height: var(--leading-tight);
+}
+
+.projector-option-text {
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: var(--leading-normal);
+}
+
+.projector-explanation {
+  font-size: var(--text-base);
+  line-height: var(--leading-relaxed);
 }

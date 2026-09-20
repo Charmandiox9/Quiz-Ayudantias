@@ -16,62 +16,63 @@ export default function QuestionCard({
   if (!question) return null;
 
   return (
-    <Card style={{ maxWidth: '800px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+    <Card style={{ maxWidth: '980px', width: '100%', margin: '0 auto', padding: '28px 24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
         <Badge variant="navy" icon={BookOpen}>
-          {question.topic || 'Modelamiento UML'}
+          <span style={{ fontSize: '15px' }}>{question.topic || 'Modelamiento UML'}</span>
         </Badge>
-        <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748B' }}>
+        <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-text-secondary)' }}>
           Pregunta {currentIndex + 1} de {totalQuestions}
         </span>
       </div>
 
-      <h2 style={{ fontSize: '19px', fontWeight: 700, color: '#0F172A', marginBottom: '16px', lineHeight: 1.4 }}>
+      <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--color-text-main)', marginBottom: '22px', lineHeight: 1.35 }}>
         {question.q}
       </h2>
 
       {question.diagramSnippet && (
         <div
           style={{
-            backgroundColor: '#F8FAFC',
-            border: '1px solid #E2E8F0',
-            borderRadius: '8px',
-            padding: '12px 16px',
-            marginBottom: '18px',
+            backgroundColor: 'var(--color-bg)',
+            border: '1px solid var(--color-border)',
+            borderRadius: '10px',
+            padding: '16px 20px',
+            marginBottom: '22px',
             fontFamily: 'Consolas, monospace',
-            fontSize: '13px',
-            color: '#1E2761',
+            fontSize: '15px',
+            color: 'var(--color-primary)',
             whiteSpace: 'pre-wrap',
+            lineHeight: 1.5,
           }}
         >
           {question.diagramSnippet}
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '16px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '20px' }}>
         {question.opts.map((optionText, idx) => {
           const label = OPTION_LABELS[idx] || String(idx + 1);
           const isSelected = selectedAnswerIndex === idx;
           const isCorrect = isRevealed && idx === question.ans;
           const isWrongSelection = isRevealed && isSelected && !isCorrect;
 
-          let btnBg = '#FFFFFF';
-          let borderColor = '#E2E8F0';
-          let textColor = '#1E293B';
+          let btnBg = 'var(--color-surface)';
+          let borderColor = 'var(--color-border)';
+          let textColor = 'var(--color-text-main)';
 
           if (isRevealed) {
             if (isCorrect) {
-              btnBg = '#DCFCE7';
-              borderColor = '#16A34A';
+              btnBg = 'var(--color-success-bg)';
+              borderColor = 'var(--color-success)';
               textColor = '#15803D';
             } else if (isWrongSelection) {
-              btnBg = '#FEE2E2';
-              borderColor = '#DC2626';
+              btnBg = 'var(--color-danger-bg)';
+              borderColor = 'var(--color-danger)';
               textColor = '#B91C1C';
             } else {
-              btnBg = '#F8FAFC';
-              borderColor = '#E2E8F0';
-              textColor = '#94A3B8';
+              btnBg = 'var(--color-bg)';
+              borderColor = 'var(--color-border)';
+              textColor = 'var(--color-text-muted)';
             }
           } else if (isSelected) {
             btnBg = '#EFF6FF';
@@ -88,9 +89,9 @@ export default function QuestionCard({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '14px',
-                padding: '14px 18px',
-                borderRadius: '10px',
+                gap: '18px',
+                padding: '18px 22px',
+                borderRadius: '12px',
                 backgroundColor: btnBg,
                 border: `2px solid ${borderColor}`,
                 color: textColor,
@@ -101,22 +102,23 @@ export default function QuestionCard({
             >
               <span
                 style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '6px',
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '8px',
                   backgroundColor: OPTION_COLORS[label] || '#475569',
                   color: '#FFFFFF',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontWeight: 800,
-                  fontSize: '14px',
+                  fontWeight: 900,
+                  fontSize: '20px',
                   flexShrink: 0,
+                  fontFamily: 'Consolas, monospace',
                 }}
               >
                 {label}
               </span>
-              <span style={{ fontSize: '15px', fontWeight: 500, flex: 1 }}>
+              <span style={{ fontSize: '20px', fontWeight: 600, flex: 1, lineHeight: 1.4 }}>
                 {optionText}
               </span>
             </button>
@@ -127,18 +129,18 @@ export default function QuestionCard({
       {showExplanation && question.exp && (
         <div
           style={{
-            marginTop: '20px',
-            padding: '14px 18px',
+            marginTop: '26px',
+            padding: '20px 24px',
             backgroundColor: '#F0FDF4',
-            border: '1px solid #BBF7D0',
-            borderRadius: '10px',
+            border: '2px solid #BBF7D0',
+            borderRadius: '12px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#15803D', fontWeight: 700, fontSize: '14px', marginBottom: '6px' }}>
-            <AlertCircle size={16} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#15803D', fontWeight: 800, fontSize: '18px', marginBottom: '8px' }}>
+            <AlertCircle size={20} />
             <span>Fundamento Tecnico</span>
           </div>
-          <p style={{ fontSize: '13.5px', color: '#166534', lineHeight: 1.5 }}>
+          <p style={{ fontSize: '17px', color: '#166534', lineHeight: 1.6, fontWeight: 500 }}>
             {question.exp}
           </p>
         </div>
