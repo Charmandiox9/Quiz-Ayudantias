@@ -4,13 +4,13 @@ import Button from "../components/common/Button";
 import Badge from "../components/common/Badge";
 import QuestionCard from "../components/quiz/QuestionCard";
 import MistakesCarousel from "../components/quiz/MistakesCarousel";
+import RewardCard from "../components/common/RewardCard";
 import {
   ArrowRight,
   RotateCcw,
   ArrowLeft,
   Trophy,
   AlertTriangle,
-  CheckCircle2,
 } from "lucide-react";
 
 export default function SoloScreen({ ayudantia, onExit }) {
@@ -164,41 +164,17 @@ export default function SoloScreen({ ayudantia, onExit }) {
 
         {/* Diagnostico de Conceptos a Reforzar */}
         {incorrectAnswers.length === 0 ? (
-          <Card
-            style={{
-              padding: "24px",
-              backgroundColor: "#F0FDF4",
-              border: "1.5px solid #86EFAC",
-              marginBottom: "24px",
-              display: "flex",
-              alignItems: "center",
-              gap: "16px",
-            }}
-          >
-            <div
-              style={{
-                width: "48px",
-                height: "48px",
-                borderRadius: "12px",
-                backgroundColor: "#DCFCE7",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <CheckCircle2 size={28} color="#16A34A" />
-            </div>
-            <div>
-              <h3 style={{ fontSize: "17px", fontWeight: 700, color: "#166534", margin: 0 }}>
-                Dominio Completo de Conceptos
-              </h3>
-              <p style={{ fontSize: "14px", color: "#15803D", margin: "4px 0 0" }}>
-                Respondiste correctamente todas las preguntas de la sesion. Tu comprension de los
-                fundamentos teoricos y practicos es optima.
-              </p>
-            </div>
-          </Card>
+          <div style={{ marginBottom: "32px" }}>
+            <RewardCard
+              title={ayudantia.title}
+              subtitle="Carta de Recompensa Coleccionable — Ingenieria de Software"
+              accuracy={100}
+              score={score}
+              mascotSrc="/assets/mascot.png"
+              onRestart={handleRestart}
+              onExit={onExit}
+            />
+          </div>
         ) : (
           <div style={{ marginBottom: "32px" }}>
             {/* Resumen de Conceptos a Reforzar */}
