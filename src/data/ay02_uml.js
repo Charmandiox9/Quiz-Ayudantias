@@ -6,6 +6,7 @@ export const ay02Uml = {
   subtitle: "Waterfall vs Ágil, RF/RNF, HU e INVEST, Casos de Uso, Clases, Actividad, Secuencia y Paquetes",
   course: "Ingeniería de Software",
   semester: "2026-02",
+  cardImage: "/assets/ay02_uml.png",
   description: "Evaluación formativa sobre procesos de desarrollo, especificación de requisitos e historias de usuario, y modelado estructural y dinámico con diagramas UML.",
   defaultTimerSeconds: 60,
   pointsPerQuestion: 1000,

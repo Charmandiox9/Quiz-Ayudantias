@@ -11,7 +11,18 @@ export default function RewardCard({
   onRestart = null,
   onExit = null,
 }) {
+  const [imgSrc, setImgSrc] = useState(mascotSrc || "/assets/mascot.png");
   const [imageError, setImageError] = useState(false);
+
+  const handleImgError = () => {
+    if (imgSrc !== "/assets/mascot.png") {
+      setImgSrc("/assets/mascot.png");
+    } else if (imgSrc !== "/favicon.png") {
+      setImgSrc("/favicon.png");
+    } else {
+      setImageError(true);
+    }
+  };
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
 
@@ -175,9 +186,9 @@ export default function RewardCard({
             >
               {!imageError ? (
                 <img
-                  src={mascotSrc}
-                  alt="Mascota Oficial Pingüino"
-                  onError={() => setImageError(true)}
+                  src={imgSrc}
+                  alt="Ilustracion de la Carta Coleccionable"
+                  onError={handleImgError}
                   style={{
                     width: "100%",
                     height: "100%",

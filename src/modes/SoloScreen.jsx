@@ -167,10 +167,10 @@ export default function SoloScreen({ ayudantia, onExit }) {
           <div style={{ marginBottom: "32px" }}>
             <RewardCard
               title={ayudantia.title}
-              subtitle="Carta de Recompensa Coleccionable — Ingenieria de Software"
+              subtitle={`Carta de Logro Coleccionable — ${ayudantia.course || "Ingenieria de Software"}`}
               accuracy={100}
               score={score}
-              mascotSrc="/assets/mascot.png"
+              mascotSrc={ayudantia.cardImage || "/assets/mascot.png"}
               onRestart={handleRestart}
               onExit={onExit}
             />

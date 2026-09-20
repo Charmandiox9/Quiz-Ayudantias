@@ -7,6 +7,7 @@ export const ay03Solid = {
   subtitle: "S (Responsabilidad Única), O (Abierto/Cerrado), L (Sustitución Liskov), I (Segregación Interfaces), D (Inversión Dependencias)",
   course: "Ingeniería de Software",
   semester: "2026-02",
+  cardImage: "/assets/ay03_solid.png",
   description: "Evaluación formativa sobre fundamentos prácticos, analogías cotidianas, code smells y refactorización orientada a objetos con principios SOLID.",
   defaultTimerSeconds: 60,
   pointsPerQuestion: 1000,
