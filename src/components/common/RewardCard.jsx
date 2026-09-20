@@ -7,11 +7,11 @@ import {
   RotateCcw,
   ArrowLeft,
   Download,
-  Award,
   ShieldCheck,
   Zap,
   CheckCircle2,
   ExternalLink,
+  Gift,
 } from "lucide-react";
 
 /**
@@ -47,6 +47,7 @@ export default function RewardCard({
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [generatedBlobUrl, setGeneratedBlobUrl] = useState(null);
 
+  // Estados compartidos para la fisica 3D interactiva del raton (tanto para el sobre como para la carta)
   const [pointer, setPointer] = useState({ x: 50, y: 50 });
   const [rotate, setRotate] = useState({ x: 0, y: 0 });
   const [isInteracting, setIsInteracting] = useState(false);
@@ -62,8 +63,10 @@ export default function RewardCard({
   }, [title]);
 
   /**
-   * Accion interactiva de rasgar y abrir el sobre.
-   * Reproduce sonido de rasgado, abre la solapa en 3D y desliza la carta hacia afuera.
+   * Apertura pausada y cinematografica del sobre (1.5s).
+   * Fase 1: Carga luminosa y sonido de rasgado (0 - 450ms).
+   * Fase 2: Fanfarria triunfal y transicion (450ms - 900ms).
+   * Fase 3: La carta emerge majestuosamente y el sobre se desvanece (900ms - 1500ms).
    */
   const handleOpenPack = () => {
     if (isOpening || isOpened) return;
@@ -81,18 +84,21 @@ export default function RewardCard({
       } catch {
         // Audio fallback
       }
-    }, 280);
+    }, 450);
 
     setTimeout(() => {
       setIsOpened(true);
       setIsOpening(false);
-    }, 720);
+    }, 1300);
   };
 
+  /**
+   * Controlador de movimiento 3D compartido (responde tanto en el sobre como en la carta).
+   */
   const handlePointerMove = (e) => {
     if (isSuctioning) return;
-    const card = e.currentTarget;
-    const rect = card.getBoundingClientRect();
+    const element = e.currentTarget;
+    const rect = element.getBoundingClientRect();
     const clientX =
       e.clientX !== undefined
         ? e.clientX
@@ -137,11 +143,10 @@ export default function RewardCard({
   };
 
   /**
-   * Dispara el guardado de la imagen asegurando formato PNG en todos los sistemas operativos.
-   * Prioriza la API nativa de guardado de archivos de Chromium/Windows (showSaveFilePicker).
+   * Guarda la imagen asegurando formato PNG sin perdida en todos los navegadores y Windows.
    */
   const saveImageFile = async (pngBlob, filename) => {
-    // 1. Intentar con showSaveFilePicker si el navegador lo soporta (Chrome/Edge en Windows)
+    // 1. Intentar con showSaveFilePicker (Chromium nativo en Windows)
     if (typeof window !== "undefined" && "showSaveFilePicker" in window) {
       try {
         const handle = await window.showSaveFilePicker({
@@ -158,15 +163,13 @@ export default function RewardCard({
         await writable.close();
         return true;
       } catch (err) {
-        // Si el usuario cancelo el dialogo, no continuar con descarga duplicada
         if (err && err.name === "AbortError") {
           return false;
         }
-        // Si ocurrio otro error, continuar al fallback
       }
     }
 
-    // 2. Metodo estandar mediante elemento ancla con Blob URL explicito
+    // 2. Metodo estandar mediante Blob URL forzado
     const url = URL.createObjectURL(pngBlob);
     setGeneratedBlobUrl(url);
 
@@ -180,14 +183,15 @@ export default function RewardCard({
 
     setTimeout(() => {
       document.body.removeChild(a);
-    }, 1000);
+    }, 1200);
 
     return true;
   };
 
   /**
-   * Renderizado en Canvas con estampa de numero de serie, animacion de succion
-   * y guardado en base de datos cumpliendo con la Ley N° 21.719.
+   * Renderizado en Canvas en MAXIMA RESOLUCION (1792 x 2400).
+   * Se inserta unicamente el ID, semestre, ramo y usuario de GitHub @Marton1123 en el borde inferior exterior,
+   * garantizando que los medallones e ilustracion permanezcan 100% intactos y limpios.
    */
   const handleCanvasDownload = async () => {
     if (isDownloading || isSuctioning) return;
@@ -205,7 +209,7 @@ export default function RewardCard({
     const cleanFilename = `Carta_IS_${cleanId}.png`;
 
     try {
-      // 1. Cargar imagen binaria mediante fetch para evitar problemas de taint en Canvas
+      // 1. Cargar imagen binaria mediante fetch para máxima fidelidad
       const response = await fetch(activeImgSrc);
       const sourceBlob = await response.blob();
       const imgBitmap = await createImageBitmap(sourceBlob);
@@ -213,41 +217,46 @@ export default function RewardCard({
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
+      // Resolucion nativa ultra nitida
       canvas.width = imgBitmap.width || 1792;
       canvas.height = imgBitmap.height || 2400;
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
 
       // Dibujar la ilustracion completa de la carta
       ctx.drawImage(imgBitmap, 0, 0, canvas.width, canvas.height);
 
-      // Estampar cintillo oficial de certificacion con ID unico
-      const bannerH = Math.round(canvas.height * 0.036);
-      const bannerY = canvas.height - bannerH - Math.round(canvas.height * 0.018);
-      const bannerX = Math.round(canvas.width * 0.06);
-      const bannerW = canvas.width - bannerX * 2;
+      // Sombra para contraste y legibilidad sobre cualquier fondo
+      ctx.shadowColor = "rgba(0, 0, 0, 0.95)";
+      ctx.shadowBlur = 5;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 1;
 
-      ctx.fillStyle = "rgba(15, 23, 42, 0.94)";
-      ctx.strokeStyle = "rgba(245, 158, 11, 0.95)";
-      ctx.lineWidth = 4;
+      const footerY = canvas.height - 24;
 
-      if (ctx.roundRect) {
-        ctx.beginPath();
-        ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 16);
-        ctx.fill();
-        ctx.stroke();
-      } else {
-        ctx.fillRect(bannerX, bannerY, bannerW, bannerH);
-        ctx.strokeRect(bannerX, bannerY, bannerW, bannerH);
-      }
+      // Izquierda: ID unico de la carta
+      ctx.fillStyle = "#F59E0B";
+      ctx.font = "bold 20px Consolas, monospace";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`ID: ${uniqueId}`, 68, footerY);
 
-      ctx.fillStyle = "#FBBF24";
-      ctx.font = `bold ${Math.round(bannerH * 0.44)}px Consolas, monospace`;
+      // Centro: Semestre y Ramo
+      ctx.fillStyle = "#F1E3C6";
+      ctx.font = "bold 19px system-ui, -apple-system, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+      ctx.fillText("Ingenieria de Software • 2026-02", canvas.width / 2, footerY);
 
-      const text = `CERTIFICADO OFICIAL ${uniqueId} | PRECISION: 100% | INGENIERIA DE SOFTWARE 2026-02`;
-      ctx.fillText(text, canvas.width / 2, bannerY + bannerH / 2);
+      // Derecha: Usuario de GitHub @Marton1123
+      ctx.fillStyle = "#FCD34D";
+      ctx.font = "bold 20px Consolas, monospace";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      ctx.fillText("Ayudantia: @Marton1123", canvas.width - 68, footerY);
 
-      // 2. Exportar canvas a un Blob PNG genuino
+      // 2. Exportar canvas a Blob PNG genuino sin perdida de calidad
       const canvasBlob = await new Promise((resolve) =>
         canvas.toBlob(resolve, "image/png", 1.0)
       );
@@ -256,8 +265,8 @@ export default function RewardCard({
         type: "image/png",
       });
 
-      // 3. Esperar que la animacion de succion hacia el boton culmine
-      await new Promise((resolve) => setTimeout(resolve, 680));
+      // 3. Esperar que la animacion pausada de succion culmine (1.1s)
+      await new Promise((resolve) => setTimeout(resolve, 1100));
 
       // 4. Guardar archivo con formato PNG garantizado
       const saved = await saveImageFile(finalPngBlob, cleanFilename);
@@ -265,7 +274,7 @@ export default function RewardCard({
       if (saved) {
         setDownloadSuccess(true);
 
-        // 5. Registrar la descarga en la base de datos (Supabase y localStorage)
+        // 5. Registrar la descarga en base de datos (Supabase y localStorage)
         certificateService.recordDownload({
           serialId: uniqueId,
           quizTitle: title,
@@ -275,7 +284,7 @@ export default function RewardCard({
         });
       }
     } catch {
-      // Fallback directo en caso de incompatibilidad con Bitmap/Canvas
+      // Fallback directo en caso de incompatibilidad
       const a = document.createElement("a");
       a.href = activeImgSrc;
       a.download = cleanFilename;
@@ -301,10 +310,10 @@ export default function RewardCard({
         padding: "10px 0 24px",
       }}
     >
-      {/* 1. Experiencia Interactiva de Sobre Booster Pack con Accion Tactil de Apertura */}
+      {/* 1. Experiencia del Sobre Booster Pack con Diseno Coherente y Movimiento 3D */}
       {!isOpened ? (
         <div
-          className="fade-in envelope-container"
+          className="fade-in"
           style={{
             display: "flex",
             flexDirection: "column",
@@ -358,159 +367,228 @@ export default function RewardCard({
               lineHeight: 1.5,
             }}
           >
-            Toca el sello dorado o presiona el boton para abrir el sobre y revelar tu carta oficial.
+            Mueve el cursor para apreciar el brillo foil 3D, y presiona el sobre para rasgarlo y revelar tu carta.
           </p>
 
-          {/* Sobre Tactil con Solapa 3D y Sello */}
+          {/* Contenedor 3D del Sobre (Reacciona al raton igual que la carta) */}
           <div
-            onClick={handleOpenPack}
-            className={`card-hover foil-gleam ${isOpening ? "pulse-animation" : ""}`}
             style={{
-              position: "relative",
+              perspective: "1200px",
               width: "100%",
-              maxWidth: "320px",
-              aspectRatio: "3 / 4.2",
-              borderRadius: "18px",
-              overflow: "hidden",
-              cursor: "pointer",
-              boxShadow: "0 22px 40px -8px rgba(30, 39, 97, 0.45), 0 0 28px rgba(245, 158, 11, 0.35)",
-              border: "2.5px solid rgba(251, 191, 36, 0.85)",
-              background: "linear-gradient(145deg, #0F172A 0%, #1E2761 45%, #1E40AF 80%, #0F172A 100%)",
+              maxWidth: "360px",
               display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              padding: "16px",
-              color: "#FFFFFF",
-              transform: isOpening ? "scale(1.05) translateY(-6px)" : "none",
-              transition: "all 0.35s ease",
+              justifyContent: "center",
+              marginBottom: "18px",
             }}
           >
-            {/* Solapa Superior 3D */}
             <div
-              className={`envelope-flap ${isOpening ? "is-open" : ""}`}
+              onMouseMove={handlePointerMove}
+              onTouchMove={handlePointerMove}
+              onMouseEnter={() => setIsInteracting(true)}
+              onMouseLeave={handlePointerLeave}
+              onTouchEnd={handlePointerLeave}
+              onClick={handleOpenPack}
+              className={`card-hover ${isOpening ? "pack-charge" : ""}`}
               style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                height: "85px",
-                background: "linear-gradient(180deg, #1E293B 0%, #334155 100%)",
-                clipPath: "polygon(0 0, 100% 0, 50% 100%)",
-                borderBottom: "2px solid #FCD34D",
-                zIndex: 3,
-                boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-              }}
-            />
-
-            {/* Sello de Cera Dorado Central */}
-            <div
-              className={isOpening ? "seal-cracking" : ""}
-              style={{
-                position: "absolute",
-                top: "60px",
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: "56px",
-                height: "56px",
-                borderRadius: "50%",
-                background: "radial-gradient(circle, #FDE68A 0%, #F59E0B 70%, #B45309 100%)",
-                border: "2px solid #FFFBEB",
-                boxShadow: "0 4px 14px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.7)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 4,
+                position: "relative",
+                width: "100%",
+                maxWidth: "360px",
+                aspectRatio: "1792 / 2400",
+                borderRadius: "22px",
+                overflow: "hidden",
                 cursor: "pointer",
-                transition: "transform 0.2s ease",
-              }}
-            >
-              <Award size={28} color="#78350F" />
-            </div>
-
-            {/* Costura superior de sellado foil */}
-            <div
-              style={{
-                height: "14px",
-                background: "repeating-linear-gradient(90deg, #F59E0B 0px, #F59E0B 4px, #B45309 4px, #B45309 8px)",
-                borderRadius: "4px",
-                opacity: 0.85,
-                zIndex: 2,
-              }}
-            />
-
-            {/* Centro del Sobre con Detalles de Edicion */}
-            <div
-              style={{
-                padding: "54px 10px 10px",
+                transformStyle: "preserve-3d",
+                transform: `rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale3d(${isInteracting ? 1.03 : 1}, ${isInteracting ? 1.03 : 1}, ${isInteracting ? 1.03 : 1})`,
+                transition: isInteracting ? "transform 0.08s ease-out" : "all 0.5s ease",
+                boxShadow: isInteracting
+                  ? `0 28px 55px -10px rgba(15, 23, 42, 0.55), ${rotate.y * -2}px ${rotate.x * 2}px 32px rgba(245, 158, 11, 0.35)`
+                  : "0 20px 40px -8px rgba(15, 23, 42, 0.4)",
+                border: "2.5px solid rgba(251, 191, 36, 0.85)",
+                background: "linear-gradient(135deg, #090D16 0%, #151D3B 30%, #1E3A8A 65%, #0F172A 100%)",
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "center",
-                zIndex: 2,
+                justifyContent: "space-between",
+                padding: "20px 18px",
+                color: "#FFFFFF",
               }}
             >
-              <span
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 900,
-                  letterSpacing: "1.5px",
-                  textTransform: "uppercase",
-                  color: "#FCD34D",
-                  marginBottom: "6px",
-                }}
-              >
-                EDICION LIMITADA 2026-02
-              </span>
-
-              <h3
-                style={{
-                  fontSize: "21px",
-                  fontWeight: 900,
-                  color: "#FFFFFF",
-                  margin: "0 0 6px",
-                  textShadow: "0 2px 8px rgba(0,0,0,0.7)",
-                }}
-              >
-                Sobre de Maestria
-              </h3>
-
-              <p style={{ fontSize: "12.5px", color: "#CBD5E1", margin: 0, textAlign: "center" }}>
-                {title}
-              </p>
-            </div>
-
-            {/* Indicador de Rasgar Precinto */}
-            <div style={{ zIndex: 2 }}>
+              {/* Costura superior de sellado termico foil */}
               <div
                 style={{
-                  padding: "9px 12px",
-                  backgroundColor: "rgba(245, 158, 11, 0.25)",
-                  borderRadius: "10px",
-                  border: "1px dashed #FCD34D",
-                  marginBottom: "10px",
+                  height: "18px",
+                  background: "repeating-linear-gradient(90deg, #F59E0B 0px, #F59E0B 3px, #78350F 3px, #78350F 6px)",
+                  borderRadius: "6px",
+                  opacity: 0.9,
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                }}
+              />
+
+              {/* Franja de Rasgado Perforada (Elegante e integrada, sin cortes extranos) */}
+              <div
+                style={{
+                  margin: "8px 0",
+                  padding: "8px 12px",
+                  borderBottom: "2px dashed rgba(251, 191, 36, 0.7)",
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  gap: "6px",
+                  justifyContent: "space-between",
+                  backgroundColor: "rgba(255, 255, 255, 0.05)",
+                  borderRadius: "8px",
                 }}
               >
-                <Zap size={15} color="#FDE68A" />
-                <span style={{ fontSize: "12px", fontWeight: 800, color: "#FDE68A" }}>
-                  {isOpening ? "Abriendo sobre..." : "Toca el sello o aqui para rasgar"}
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 900,
+                    letterSpacing: "1px",
+                    textTransform: "uppercase",
+                    color: "#FCD34D",
+                  }}
+                >
+                  LINEA DE APERTURA OFICIAL
+                </span>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 800,
+                    color: "#FEF3C7",
+                    backgroundColor: "rgba(245, 158, 11, 0.35)",
+                    padding: "2px 8px",
+                    borderRadius: "12px",
+                  }}
+                >
+                  TIRAR AQUI
                 </span>
               </div>
 
+              {/* Emblema Central Integrado del Sobre Coleccionable */}
               <div
                 style={{
-                  height: "14px",
-                  background: "repeating-linear-gradient(90deg, #F59E0B 0px, #F59E0B 4px, #B45309 4px, #B45309 8px)",
-                  borderRadius: "4px",
-                  opacity: 0.85,
+                  padding: "16px 12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  textAlign: "center",
+                }}
+              >
+                <div
+                  style={{
+                    width: "82px",
+                    height: "82px",
+                    borderRadius: "24px",
+                    backgroundColor: "rgba(255, 255, 255, 0.1)",
+                    backdropFilter: "blur(8px)",
+                    border: "2px solid #FCD34D",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: "14px",
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.5), inset 0 1px 3px rgba(255,255,255,0.4)",
+                  }}
+                >
+                  <Gift size={42} color="#FBBF24" />
+                </div>
+
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 900,
+                    letterSpacing: "1.8px",
+                    textTransform: "uppercase",
+                    color: "#FCD34D",
+                    marginBottom: "6px",
+                  }}
+                >
+                  INGENIERIA DE SOFTWARE 2026-02
+                </span>
+
+                <h3
+                  style={{
+                    fontSize: "22px",
+                    fontWeight: 900,
+                    color: "#FFFFFF",
+                    margin: "0 0 6px",
+                    textShadow: "0 2px 10px rgba(0,0,0,0.7)",
+                  }}
+                >
+                  Sobre de Maestria
+                </h3>
+
+                <p style={{ fontSize: "13px", color: "#CBD5E1", margin: "0 0 10px", lineHeight: 1.4 }}>
+                  {title}
+                </p>
+
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "4px 12px",
+                    backgroundColor: "rgba(245, 158, 11, 0.2)",
+                    borderRadius: "20px",
+                    border: "1px solid rgba(251, 191, 36, 0.5)",
+                  }}
+                >
+                  <span style={{ fontSize: "11px", fontWeight: 800, color: "#FDE68A" }}>
+                    EDICION LIMITADA — 100% DOMINIO
+                  </span>
+                </div>
+              </div>
+
+              {/* Boton Táctil Inferior de Rasgado */}
+              <div>
+                <div
+                  style={{
+                    padding: "10px 14px",
+                    backgroundColor: "rgba(245, 158, 11, 0.28)",
+                    borderRadius: "12px",
+                    border: "1.5px dashed #FCD34D",
+                    marginBottom: "10px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <Zap size={16} color="#FDE68A" />
+                  <span style={{ fontSize: "12.5px", fontWeight: 900, color: "#FDE68A" }}>
+                    {isOpening ? "Abriendo sobre..." : "Toca aqui para rasgar y abrir"}
+                  </span>
+                </div>
+
+                {/* Costura inferior de sellado termico foil */}
+                <div
+                  style={{
+                    height: "18px",
+                    background: "repeating-linear-gradient(90deg, #F59E0B 0px, #F59E0B 3px, #78350F 3px, #78350F 6px)",
+                    borderRadius: "6px",
+                    opacity: 0.9,
+                    boxShadow: "0 -2px 8px rgba(0,0,0,0.4)",
+                  }}
+                />
+              </div>
+
+              {/* Brillo Foil Metalico Dinamico que sigue al cursor en el sobre */}
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  pointerEvents: "none",
+                  background: `radial-gradient(
+                    circle at ${pointer.x}% ${pointer.y}%,
+                    rgba(255, 255, 255, 0.4) 0%,
+                    rgba(255, 215, 0, 0.2) 30%,
+                    transparent 65%
+                  )`,
+                  mixBlendMode: "overlay",
+                  opacity: isInteracting ? 0.9 : 0.2,
+                  transition: "opacity 0.25s ease",
                 }}
               />
             </div>
           </div>
 
-          <div style={{ marginTop: "22px" }}>
+          <div>
             <Button
               variant="accent"
               size="lg"
@@ -523,9 +601,9 @@ export default function RewardCard({
           </div>
         </div>
       ) : (
-        /* 2. Carta Revelada en su Esplendor Holografico 3D con Animacion de Succion */
+        /* 2. Carta Revelada en su Esplendor Holografico 3D con Animacion de Succion Cinematografica */
         <div
-          className="fade-in card-slide-out"
+          className="fade-in card-slide-out-slow"
           style={{
             display: "flex",
             flexDirection: "column",
@@ -575,7 +653,7 @@ export default function RewardCard({
             </p>
           </div>
 
-          {/* Contenedor 3D de la Carta con Animacion de Succion */}
+          {/* Contenedor 3D de la Carta */}
           <div
             style={{
               perspective: "1200px",
@@ -592,7 +670,7 @@ export default function RewardCard({
               onMouseEnter={() => setIsInteracting(true)}
               onMouseLeave={handlePointerLeave}
               onTouchEnd={handlePointerLeave}
-              className={`card-pop-up ${isSuctioning ? "card-suction" : ""}`}
+              className={`card-pop-up ${isSuctioning ? "card-suction-slow" : ""}`}
               style={{
                 position: "relative",
                 width: "100%",
@@ -643,7 +721,7 @@ export default function RewardCard({
                     textAlign: "center",
                   }}
                 >
-                  <Award size={64} color="#FBBF24" />
+                  <Gift size={64} color="#FBBF24" />
                   <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#FFFFFF" }}>{title}</h3>
                   <p style={{ fontSize: "13px", color: "#94A3B8" }}>{subtitle}</p>
                 </div>
@@ -795,7 +873,7 @@ export default function RewardCard({
             }}
           >
             {/* Boton Descargar con Succion, Canvas y Registro de Timestamp */}
-            <div ref={downloadBtnRef} className={isSuctioning ? "btn-absorb" : ""}>
+            <div ref={downloadBtnRef} className={isSuctioning ? "btn-absorb-slow" : ""}>
               <Button
                 variant="accent"
                 icon={downloadSuccess ? CheckCircle2 : Download}
@@ -806,14 +884,14 @@ export default function RewardCard({
                 {isSuctioning
                   ? "Succionando Carta..."
                   : isDownloading
-                  ? "Generando PNG..."
+                  ? "Generando PNG Ultra..."
                   : downloadSuccess
                   ? "Descargar Otra Vez (PNG)"
                   : "Descargar Carta (PNG)"}
               </Button>
             </div>
 
-            {/* Enlace de contingencia para abrir en nueva pestaña si el navegador bloquea la descarga */}
+            {/* Enlace de contingencia para abrir en nueva pestaña */}
             {generatedBlobUrl && (
               <a
                 href={generatedBlobUrl}
