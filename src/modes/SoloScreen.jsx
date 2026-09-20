@@ -108,7 +108,7 @@ export default function SoloScreen({ ayudantia, onExit }) {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
+              gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 140px), 1fr))",
               gap: "12px",
               marginBottom: "28px",
             }}
@@ -300,7 +300,7 @@ export default function SoloScreen({ ayudantia, onExit }) {
                     <div
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
                         gap: "10px",
                         marginBottom: "14px",
                       }}

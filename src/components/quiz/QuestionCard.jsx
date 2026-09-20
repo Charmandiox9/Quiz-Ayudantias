@@ -16,17 +16,49 @@ export default function QuestionCard({
   if (!question) return null;
 
   return (
-    <Card style={{ maxWidth: '980px', width: '100%', margin: '0 auto', padding: '28px 24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+    <Card
+      style={{
+        maxWidth: '980px',
+        width: '100%',
+        margin: '0 auto',
+        padding: 'clamp(18px, 3.5vw, 32px) clamp(16px, 3.5vw, 28px)',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '16px',
+          flexWrap: 'wrap',
+          gap: '8px',
+        }}
+      >
         <Badge variant="navy" icon={BookOpen}>
-          <span style={{ fontSize: '15px' }}>{question.topic || 'Modelamiento UML'}</span>
+          <span style={{ fontSize: 'clamp(12.5px, 2.2vw, 14.5px)' }}>
+            {question.topic || 'Modelamiento'}
+          </span>
         </Badge>
-        <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-text-secondary)' }}>
+        <span
+          style={{
+            fontSize: 'clamp(13.5px, 2.5vw, 16px)',
+            fontWeight: 700,
+            color: 'var(--color-text-secondary)',
+          }}
+        >
           Pregunta {currentIndex + 1} de {totalQuestions}
         </span>
       </div>
 
-      <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--color-text-main)', marginBottom: '22px', lineHeight: 1.35 }}>
+      <h2
+        style={{
+          fontSize: 'clamp(19px, 3.8vw, 27px)',
+          fontWeight: 800,
+          color: 'var(--color-text-main)',
+          marginBottom: '20px',
+          lineHeight: 1.35,
+        }}
+      >
         {question.q}
       </h2>
 
@@ -36,20 +68,21 @@ export default function QuestionCard({
             backgroundColor: 'var(--color-bg)',
             border: '1px solid var(--color-border)',
             borderRadius: '10px',
-            padding: '16px 20px',
-            marginBottom: '22px',
+            padding: 'clamp(12px, 2.5vw, 16px) clamp(14px, 3vw, 20px)',
+            marginBottom: '20px',
             fontFamily: 'Consolas, monospace',
-            fontSize: '15px',
+            fontSize: 'clamp(12.5px, 2.5vw, 14.5px)',
             color: 'var(--color-primary)',
             whiteSpace: 'pre-wrap',
-            lineHeight: 1.5,
+            lineHeight: 1.45,
+            overflowX: 'auto',
           }}
         >
-          {question.diagramSnippet}
+          <code>{question.diagramSnippet}</code>
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '20px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
         {question.opts.map((optionText, idx) => {
           const label = OPTION_LABELS[idx] || String(idx + 1);
           const isSelected = selectedAnswerIndex === idx;
@@ -86,24 +119,26 @@ export default function QuestionCard({
               type="button"
               onClick={() => onSelectAnswer && !isRevealed && onSelectAnswer(idx)}
               disabled={isRevealed || !onSelectAnswer}
+              className="touch-btn"
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '18px',
-                padding: '18px 22px',
+                gap: 'clamp(12px, 2.5vw, 18px)',
+                padding: 'clamp(12px, 2.5vw, 18px) clamp(14px, 3vw, 22px)',
                 borderRadius: '12px',
                 backgroundColor: btnBg,
                 border: `2px solid ${borderColor}`,
                 color: textColor,
                 textAlign: 'left',
                 cursor: isRevealed || !onSelectAnswer ? 'default' : 'pointer',
-                transition: 'all 0.2s ease',
+                boxShadow: isSelected ? '0 0 0 1px #2563EB' : 'none',
+                width: '100%',
               }}
             >
               <span
                 style={{
-                  width: '42px',
-                  height: '42px',
+                  width: 'clamp(34px, 5.5vw, 42px)',
+                  height: 'clamp(34px, 5.5vw, 42px)',
                   borderRadius: '8px',
                   backgroundColor: OPTION_COLORS[label] || '#475569',
                   color: '#FFFFFF',
@@ -111,14 +146,21 @@ export default function QuestionCard({
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontWeight: 900,
-                  fontSize: '20px',
+                  fontSize: 'clamp(16px, 3vw, 20px)',
                   flexShrink: 0,
                   fontFamily: 'Consolas, monospace',
                 }}
               >
                 {label}
               </span>
-              <span style={{ fontSize: '20px', fontWeight: 600, flex: 1, lineHeight: 1.4 }}>
+              <span
+                style={{
+                  fontSize: 'clamp(15px, 2.6vw, 19px)',
+                  fontWeight: 600,
+                  flex: 1,
+                  lineHeight: 1.45,
+                }}
+              >
                 {optionText}
               </span>
             </button>
@@ -129,18 +171,35 @@ export default function QuestionCard({
       {showExplanation && question.exp && (
         <div
           style={{
-            marginTop: '26px',
-            padding: '20px 24px',
+            marginTop: '22px',
+            padding: 'clamp(14px, 3vw, 20px) clamp(16px, 3.5vw, 24px)',
             backgroundColor: '#F0FDF4',
             border: '2px solid #BBF7D0',
             borderRadius: '12px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#15803D', fontWeight: 800, fontSize: '18px', marginBottom: '8px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              color: '#15803D',
+              fontWeight: 800,
+              fontSize: 'clamp(15px, 2.5vw, 18px)',
+              marginBottom: '8px',
+            }}
+          >
             <AlertCircle size={20} />
             <span>Fundamento Tecnico</span>
           </div>
-          <p style={{ fontSize: '17px', color: '#166534', lineHeight: 1.6, fontWeight: 500 }}>
+          <p
+            style={{
+              fontSize: 'clamp(14.5px, 2.4vw, 17px)',
+              color: '#166534',
+              lineHeight: 1.55,
+              fontWeight: 500,
+            }}
+          >
             {question.exp}
           </p>
         </div>

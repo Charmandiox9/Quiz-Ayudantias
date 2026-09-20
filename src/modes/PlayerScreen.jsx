@@ -190,7 +190,7 @@ export default function PlayerScreen({ playerInfo, onExit }) {
                     onClick={() => handleVote(label)}
                     disabled={hasVoted}
                     style={{
-                      height: "130px",
+                      height: "clamp(95px, 20vh, 135px)",
                       borderRadius: "16px",
                       backgroundColor: color,
                       color: "#FFFFFF",
@@ -198,7 +198,7 @@ export default function PlayerScreen({ playerInfo, onExit }) {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: "44px",
+                      fontSize: "clamp(32px, 8vw, 44px)",
                       fontWeight: 900,
                       fontFamily: "Consolas, monospace",
                       cursor: hasVoted ? "default" : "pointer",

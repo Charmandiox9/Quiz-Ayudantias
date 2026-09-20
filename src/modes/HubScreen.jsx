@@ -123,7 +123,7 @@ export default function HubScreen({ onStartHost, onJoinPlayer, onStartSolo, init
         </Card>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px", marginBottom: "32px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: "20px", marginBottom: "32px" }}>
         {/* Modo 1: Host / Proyector */}
         <Card style={{ display: "flex", flexDirection: "column", height: "100%" }}>
           <div style={{ padding: "4px", flex: 1 }}>

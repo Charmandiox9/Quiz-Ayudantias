@@ -16,12 +16,12 @@ export default function VoteBars({
       style={{
         display: 'grid',
         gridTemplateColumns: `repeat(${labels.length}, 1fr)`,
-        gap: '16px',
+        gap: 'clamp(8px, 2vw, 16px)',
         alignItems: 'flex-end',
         width: '100%',
         maxWidth: '980px',
         margin: '0 auto',
-        padding: '18px 0',
+        padding: '16px 0',
       }}
     >
       {labels.map((label, index) => {
@@ -38,13 +38,13 @@ export default function VoteBars({
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '10px',
+              gap: '8px',
             }}
           >
             <span
               style={{
                 fontFamily: 'Consolas, monospace',
-                fontSize: '18px',
+                fontSize: 'clamp(15px, 2.5vw, 18px)',
                 fontWeight: 800,
                 color: isRevealed && !isCorrect ? 'var(--color-text-muted)' : displayColor,
               }}
@@ -55,7 +55,7 @@ export default function VoteBars({
             <div
               style={{
                 width: '100%',
-                height: '140px',
+                height: 'clamp(90px, 16vh, 140px)',
                 backgroundColor: 'var(--color-surface-muted)',
                 borderRadius: '10px',
                 position: 'relative',
@@ -80,8 +80,8 @@ export default function VoteBars({
 
             <div
               style={{
-                width: '48px',
-                height: '48px',
+                width: 'clamp(38px, 6vw, 48px)',
+                height: 'clamp(38px, 6vw, 48px)',
                 borderRadius: '10px',
                 backgroundColor: isCorrect ? 'var(--color-success-bg)' : 'var(--color-surface)',
                 border: `3px solid ${displayColor}`,
@@ -89,14 +89,14 @@ export default function VoteBars({
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: 900,
-                fontSize: '20px',
+                fontSize: 'clamp(16px, 3vw, 20px)',
                 fontFamily: 'Consolas, monospace',
                 color: displayColor,
                 opacity: isRevealed && !isCorrect ? 0.5 : 1,
                 transition: 'all 0.3s ease',
               }}
             >
-              {isCorrect ? <Check size={26} strokeWidth={3.5} /> : label}
+              {isCorrect ? <Check size={24} strokeWidth={3.5} /> : label}
             </div>
           </div>
         );
