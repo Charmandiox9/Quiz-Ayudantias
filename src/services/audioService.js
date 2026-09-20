@@ -270,43 +270,46 @@ class QuizAudioService {
     } catch {}
   }
 
-  playCardReturn() {
+  async playCardReturn() {
     this.ensureContext();
     if (!this.ctx) return;
     try {
+      if (this.ctx.state === "suspended") {
+        await this.ctx.resume();
+      }
       const now = this.ctx.currentTime;
 
-      // Deslizamiento ascendente suave inverso a la succion
+      // 1. Deslizamiento ascendente nitido y audible en cualquier altavoz (260Hz a 820Hz)
       const swooshOsc = this.ctx.createOscillator();
       const swooshGain = this.ctx.createGain();
       swooshOsc.type = "sine";
-      swooshOsc.frequency.setValueAtTime(90, now);
-      swooshOsc.frequency.exponentialRampToValueAtTime(520, now + 0.22);
+      swooshOsc.frequency.setValueAtTime(260, now);
+      swooshOsc.frequency.exponentialRampToValueAtTime(820, now + 0.24);
 
-      swooshGain.gain.setValueAtTime(0.0001, now);
-      swooshGain.gain.linearRampToValueAtTime(0.22, now + 0.08);
-      swooshGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+      swooshGain.gain.setValueAtTime(0.001, now);
+      swooshGain.gain.linearRampToValueAtTime(0.32, now + 0.06);
+      swooshGain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
 
       swooshOsc.connect(swooshGain);
       swooshGain.connect(this.sfxGain);
       swooshOsc.start(now);
-      swooshOsc.stop(now + 0.25);
+      swooshOsc.stop(now + 0.28);
 
-      // Toque sutil de asentamiento al aterrizar la carta
-      const popOsc = this.ctx.createOscillator();
-      const popGain = this.ctx.createGain();
-      popOsc.type = "triangle";
-      popOsc.frequency.setValueAtTime(420, now + 0.18);
-      popOsc.frequency.exponentialRampToValueAtTime(140, now + 0.28);
+      // 2. Chasquido tactil de asentamiento al aterrizar la carta (640Hz a 280Hz)
+      const snapOsc = this.ctx.createOscillator();
+      const snapGain = this.ctx.createGain();
+      snapOsc.type = "triangle";
+      snapOsc.frequency.setValueAtTime(640, now + 0.16);
+      snapOsc.frequency.exponentialRampToValueAtTime(280, now + 0.28);
 
-      popGain.gain.setValueAtTime(0.0001, now);
-      popGain.gain.setValueAtTime(0.18, now + 0.18);
-      popGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+      snapGain.gain.setValueAtTime(0.0001, now);
+      snapGain.gain.setValueAtTime(0.28, now + 0.16);
+      snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
 
-      popOsc.connect(popGain);
-      popGain.connect(this.sfxGain);
-      popOsc.start(now + 0.18);
-      popOsc.stop(now + 0.32);
+      snapOsc.connect(snapGain);
+      snapGain.connect(this.sfxGain);
+      snapOsc.start(now + 0.16);
+      snapOsc.stop(now + 0.34);
     } catch {}
   }
 

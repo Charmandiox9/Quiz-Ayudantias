@@ -344,11 +344,14 @@ export default function RewardCard({
     } finally {
       setIsSuctioning(false);
       setIsDownloading(false);
-      try {
-        audioService.playCardReturn();
-      } catch {
-        // Audio fallback
-      }
+      // Breve pausa para permitir que el navegador recupere el foco tras cerrar el dialogo de guardado
+      setTimeout(() => {
+        try {
+          audioService.playCardReturn();
+        } catch {
+          // Audio fallback
+        }
+      }, 60);
     }
   };
 

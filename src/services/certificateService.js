@@ -34,16 +34,19 @@ export const certificateService = {
     // 2. Guardar en Supabase si esta disponible
     if (isSupabaseConfigured && supabase) {
       try {
-        const { error } = await supabase.from("card_downloads").insert([
-          {
-            id: serialId,
-            quiz_title: quizTitle,
-            accuracy: Number(accuracy),
-            score: Number(score),
-            player_nickname: (nickname || "Estudiante").slice(0, 30),
-            downloaded_at: timestamp,
-          },
-        ]);
+        const { error } = await supabase.from("card_downloads").upsert(
+          [
+            {
+              id: serialId,
+              quiz_title: quizTitle,
+              accuracy: Number(accuracy),
+              score: Number(score),
+              player_nickname: (nickname || "Estudiante").slice(0, 30),
+              downloaded_at: timestamp,
+            },
+          ],
+          { onConflict: "id", ignoreDuplicates: true }
+        );
 
         if (error) {
           // Si la tabla aun no existe o hay restriccion RLS, registramos advertencia sin bloquear la app

@@ -25,3 +25,10 @@ create policy "Permitir lectura publica de certificados"
   on public.card_downloads
   for select
   using (true);
+
+-- Politica para permitir actualizacion o re-descarga del mismo certificado
+create policy "Permitir actualizacion anonima de certificados"
+  on public.card_downloads
+  for update
+  using (true)
+  with check (true);
