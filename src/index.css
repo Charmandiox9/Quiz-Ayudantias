@@ -508,3 +508,97 @@ input, button, select, textarea {
   animation: stripPeelAway 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   pointer-events: none;
 }
+
+/* ==========================================================================
+   SOBRE REAL CON SELLO DE CERA Y FISICA 3D PURA
+   ========================================================================== */
+
+/* Animacion de entrada de la carta SIN 'forwards' para no bloquear inline transforms 3D */
+.card-entrance-pop {
+  animation: cardEntrancePop 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes cardEntrancePop {
+  0% {
+    opacity: 0;
+    transform: translateY(50px) scale(0.88);
+  }
+  60% {
+    transform: translateY(-8px) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Contenedor del sobre de cera con perspectiva */
+.wax-envelope-perspective {
+  perspective: 1200px;
+}
+
+/* Solapa triangular 3D */
+.wax-flap-3d {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 52%;
+  clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
+  background: linear-gradient(180deg, #1A243D 0%, #0F172A 100%);
+  border-bottom: 2px solid rgba(251, 191, 36, 0.7);
+  transform-origin: top center;
+  transition: transform 0.85s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+  z-index: 4;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+}
+
+.wax-flap-3d.is-open {
+  transform: rotateX(175deg);
+}
+
+/* Sello de cera 3D */
+.wax-seal-realistic {
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #DC2626 0%, #991B1B 60%, #450A0A 100%);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.65), inset 0 2px 4px rgba(255, 255, 255, 0.4), inset 0 -3px 6px rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(254, 202, 202, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.wax-seal-realistic:hover {
+  transform: translate(-50%, -50%) scale(1.08);
+  box-shadow: 0 10px 25px rgba(220, 38, 38, 0.6), inset 0 2px 5px rgba(255, 255, 255, 0.5);
+}
+
+.wax-seal-cracking {
+  animation: waxSealCrack 0.5s ease-in forwards;
+}
+
+@keyframes waxSealCrack {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  40% {
+    transform: translate(-50%, -50%) scale(1.25) rotate(12deg);
+    filter: brightness(1.8);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(0.1) rotate(25deg);
+    opacity: 0;
+  }
+}

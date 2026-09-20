@@ -11,6 +11,7 @@ import {
   Zap,
   CheckCircle2,
   ExternalLink,
+  Award,
 } from "lucide-react";
 
 /**
@@ -46,10 +47,6 @@ export default function RewardCard({
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [generatedBlobUrl, setGeneratedBlobUrl] = useState(null);
 
-  // Estado del rasgado interactivo del sobre
-  const [isTearing, setIsTearing] = useState(false);
-  const [tearProgress, setTearProgress] = useState(0);
-
   // Estados para la fisica 3D interactiva del raton
   const [pointer, setPointer] = useState({ x: 50, y: 50 });
   const [rotate, setRotate] = useState({ x: 0, y: 0 });
@@ -57,7 +54,6 @@ export default function RewardCard({
 
   const lastShimmerTimeRef = useRef(0);
   const lastPosRef = useRef({ x: 50, y: 50 });
-  const tearStripRef = useRef(null);
   const downloadBtnRef = useRef(null);
 
   const activeImgSrc = customSrcOverride || mascotSrc || "/assets/ay03_solid.png";
@@ -69,17 +65,19 @@ export default function RewardCard({
   }, [title]);
 
   /**
-   * Ejecuta la apertura completa del sobre tras el rasgado.
+   * Apertura física y cinematográfica del sobre con sello de cera.
+   * 1. Rompe el sello de cera con sonido de quiebre (playTear).
+   * 2. Levanta la solapa triangular en 3D (rotateX 175deg).
+   * 3. Desliza la carta hacia arriba y reproduce la fanfarria (playReveal).
    */
-  const triggerFullOpen = () => {
+  const handleOpenEnvelope = () => {
     if (isOpening || isOpened) return;
     setIsOpening(true);
-    setTearProgress(100);
 
     try {
       audioService.playTear();
     } catch {
-      // Audio fallback silencioso
+      // Audio fallback
     }
 
     setTimeout(() => {
@@ -93,65 +91,12 @@ export default function RewardCard({
     setTimeout(() => {
       setIsOpened(true);
       setIsOpening(false);
-    }, 1300);
+    }, 1250);
   };
 
   /**
-   * Eventos de rasgado táctil sobre el sector superior del sobre.
-   */
-  const handleTearStart = (e) => {
-    e.stopPropagation();
-    if (isOpening || isOpened) return;
-    setIsTearing(true);
-
-    try {
-      audioService.playTear();
-    } catch {
-      // Audio fallback
-    }
-
-    updateTearFromPointer(e);
-  };
-
-  const updateTearFromPointer = (e) => {
-    if (!tearStripRef.current) return;
-    const rect = tearStripRef.current.getBoundingClientRect();
-    const clientX =
-      e.clientX !== undefined
-        ? e.clientX
-        : e.touches && e.touches[0]
-        ? e.touches[0].clientX
-        : rect.left;
-
-    const relX = Math.max(0, Math.min(clientX - rect.left, rect.width));
-    const progress = Math.round((relX / rect.width) * 100);
-
-    setTearProgress(progress);
-
-    if (progress >= 65) {
-      setIsTearing(false);
-      triggerFullOpen();
-    }
-  };
-
-  const handleTearMove = (e) => {
-    if (!isTearing) return;
-    e.stopPropagation();
-    updateTearFromPointer(e);
-  };
-
-  const handleTearEnd = () => {
-    if (!isTearing) return;
-    setIsTearing(false);
-    if (tearProgress >= 35) {
-      triggerFullOpen();
-    } else {
-      setTearProgress(0);
-    }
-  };
-
-  /**
-   * Controlador de movimiento 3D con emision de sonido holografico al mover la carta.
+   * Controlador de movimiento 3D con amplio rango de inclinación (hasta 20 grados)
+   * y sonido cristalino holográfico al mover la carta revelada.
    */
   const handlePointerMove = (e) => {
     if (isSuctioning) return;
@@ -176,8 +121,9 @@ export default function RewardCard({
     const px = Math.min(Math.max((x / rect.width) * 100, 0), 100);
     const py = Math.min(Math.max((y / rect.height) * 100, 0), 100);
 
-    const rotX = ((py - 50) / 50) * -16;
-    const rotY = ((px - 50) / 50) * 16;
+    // Amplitud 3D generosa y visible (hasta 20 grados)
+    const rotX = ((py - 50) / 50) * -20;
+    const rotY = ((px - 50) / 50) * 20;
 
     setPointer({ x: px, y: py });
     setRotate({ x: rotX, y: rotY });
@@ -189,11 +135,11 @@ export default function RewardCard({
       const dx = Math.abs(px - lastPosRef.current.x);
       const dy = Math.abs(py - lastPosRef.current.y);
 
-      if (dx + dy > 4 && now - lastShimmerTimeRef.current > 130) {
+      if (dx + dy > 3.5 && now - lastShimmerTimeRef.current > 120) {
         lastShimmerTimeRef.current = now;
         lastPosRef.current = { x: px, y: py };
 
-        const pitchRatio = 1 + (rotX + rotY) / 70;
+        const pitchRatio = 1 + (rotX + rotY) / 60;
         try {
           audioService.playHoloShimmer(pitchRatio);
         } catch {
@@ -220,7 +166,7 @@ export default function RewardCard({
   };
 
   /**
-   * Guarda la imagen asegurando formato PNG sin perdida en todos los navegadores y Windows.
+   * Guarda la imagen asegurando formato PNG sin pérdida en todos los navegadores y Windows.
    */
   const saveImageFile = async (pngBlob, filename) => {
     if (typeof window !== "undefined" && "showSaveFilePicker" in window) {
@@ -374,15 +320,15 @@ export default function RewardCard({
         padding: "10px 0 24px",
       }}
     >
-      {/* 1. Experiencia del Sobre Booster Pack con Diseno Limpio, Rasgado Táctil y Movimiento 3D */}
+      {/* 1. Experiencia del Sobre Clásico con Sello de Cera Realista y Física 3D */}
       {!isOpened ? (
         <div
-          className="fade-in"
+          className="fade-in wax-envelope-perspective"
           style={{
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            maxWidth: "400px",
+            maxWidth: "380px",
             width: "100%",
             textAlign: "center",
           }}
@@ -421,7 +367,7 @@ export default function RewardCard({
               marginBottom: "6px",
             }}
           >
-            Sobre Coleccionable
+            Sobre de Certificacion
           </h2>
           <p
             style={{
@@ -430,15 +376,15 @@ export default function RewardCard({
               marginBottom: "18px",
             }}
           >
-            Desliza o presiona sobre la tira dorada superior para rasgar el sobre.
+            Presiona el sello de cera para romperlo y abrir el sobre.
           </p>
 
-          {/* Contenedor 3D del Sobre */}
+          {/* Contenedor 3D del Sobre de Cera */}
           <div
             style={{
-              perspective: "1200px",
+              perspective: "1100px",
               width: "100%",
-              maxWidth: "350px",
+              maxWidth: "340px",
               display: "flex",
               justifyContent: "center",
               marginBottom: "18px",
@@ -450,137 +396,113 @@ export default function RewardCard({
               onMouseEnter={() => setIsInteracting(true)}
               onMouseLeave={handlePointerLeave}
               onTouchEnd={handlePointerLeave}
+              onClick={handleOpenEnvelope}
               className={`card-hover ${isOpening ? "pack-charge" : ""}`}
               style={{
                 position: "relative",
                 width: "100%",
-                maxWidth: "350px",
-                aspectRatio: "1792 / 2400",
-                borderRadius: "22px",
+                maxWidth: "340px",
+                aspectRatio: "3 / 4.1",
+                borderRadius: "20px",
                 overflow: "hidden",
                 transformStyle: "preserve-3d",
-                transform: `rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale3d(${isInteracting ? 1.03 : 1}, ${isInteracting ? 1.03 : 1}, ${isInteracting ? 1.03 : 1})`,
+                transform: `rotateX(${rotate.x * 0.8}deg) rotateY(${rotate.y * 0.8}deg) scale3d(${isInteracting ? 1.03 : 1}, ${isInteracting ? 1.03 : 1}, ${isInteracting ? 1.03 : 1})`,
                 transition: isInteracting ? "transform 0.08s ease-out" : "all 0.5s ease",
                 boxShadow: isInteracting
-                  ? `0 28px 55px -10px rgba(15, 23, 42, 0.55), ${rotate.y * -2}px ${rotate.x * 2}px 32px rgba(245, 158, 11, 0.35)`
-                  : "0 20px 40px -8px rgba(15, 23, 42, 0.4)",
-                border: "2.5px solid rgba(251, 191, 36, 0.85)",
-                background: "linear-gradient(140deg, #070A12 0%, #151E36 40%, #1E3A8A 75%, #0B1120 100%)",
+                  ? `0 28px 55px -10px rgba(15, 23, 42, 0.6), ${rotate.y * -2}px ${rotate.x * 2}px 32px rgba(245, 158, 11, 0.35)`
+                  : "0 20px 42px -8px rgba(15, 23, 42, 0.45)",
+                border: "2px solid rgba(251, 191, 36, 0.85)",
+                background: "linear-gradient(150deg, #090E1A 0%, #131D33 50%, #1E2E50 100%)",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
-                padding: "16px 14px",
+                padding: "20px 16px",
                 color: "#FFFFFF",
+                cursor: "pointer",
               }}
             >
-              {/* Costura superior de sellado termico foil */}
-              <div
-                style={{
-                  height: "16px",
-                  background: "repeating-linear-gradient(90deg, #F59E0B 0px, #F59E0B 3px, #78350F 3px, #78350F 6px)",
-                  borderRadius: "5px",
-                  opacity: 0.9,
-                }}
-              />
+              {/* Solapa Triangular Superior 3D */}
+              <div className={`wax-flap-3d ${isOpening ? "is-open" : ""}`} />
 
-              {/* SECTOR INTERACTIVO DE RASGADO SUPERIOR */}
+              {/* Sello de Cera Realista 3D */}
               <div
-                ref={tearStripRef}
-                onMouseDown={handleTearStart}
-                onMouseMove={handleTearMove}
-                onTouchStart={handleTearStart}
-                onTouchMove={handleTearMove}
-                onMouseUp={handleTearEnd} onTouchEnd={handleTearEnd} onClick={triggerFullOpen}
-                className={`tear-strip-zone ${isOpening ? "strip-peeling" : ""}`}
-                style={{
-                  margin: "8px 0 16px",
-                  padding: "10px 12px",
-                  borderRadius: "10px",
-                  backgroundColor: isTearing
-                    ? "rgba(245, 158, 11, 0.35)"
-                    : "rgba(255, 255, 255, 0.07)",
-                  border: "1px solid rgba(251, 191, 36, 0.45)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
+                className={`wax-seal-realistic ${isOpening ? "wax-seal-cracking" : ""}`}
+                onClick={handleOpenEnvelope}
+                title="Toca para romper el sello"
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <Zap size={16} color="#FBBF24" />
-                  <span
-                    style={{
-                      fontSize: "12px",
-                      fontWeight: 900,
-                      letterSpacing: "0.8px",
-                      color: "#FDE68A",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {tearProgress > 0 ? "Rasgando..." : "Desliza para rasgar"}
-                  </span>
-                </div>
-
                 <div
+                  style={{
+                    width: "44px",
+                    height: "44px",
+                    borderRadius: "50%",
+                    border: "1.5px solid rgba(254, 202, 202, 0.45)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "inset 0 1px 4px rgba(0, 0, 0, 0.6)",
+                  }}
+                >
+                  <Award size={25} color="#FEF08A" />
+                </div>
+              </div>
+
+              {/* Contenido interior peeking al abrirse */}
+              {isOpening && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "30%",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: "80%",
+                    height: "50%",
+                    backgroundColor: "#1E293B",
+                    borderRadius: "12px",
+                    border: "2px solid #FCD34D",
+                    zIndex: 2,
+                    boxShadow: "0 10px 25px rgba(251, 191, 36, 0.5)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Sparkles size={32} color="#FBBF24" />
+                </div>
+              )}
+
+              {/* Encabezado Superior del Sobre */}
+              <div style={{ zIndex: 1, paddingTop: "8px" }}>
+                <span
                   style={{
                     fontSize: "11px",
                     fontWeight: 900,
-                    color: "#0F172A",
-                    backgroundColor: "#FCD34D",
-                    padding: "3px 9px",
-                    borderRadius: "12px",
-                    letterSpacing: "0.5px",
+                    letterSpacing: "1.5px",
+                    textTransform: "uppercase",
+                    color: "#FCD34D",
                   }}
                 >
-                  TIRAR
-                </div>
-
-                {/* Linea perforada */}
-                <div className="tear-line-perforated" />
-
-                {/* Destello visible de la grieta rasgada */}
-                {(isTearing || tearProgress > 0) && (
-                  <div
-                    className="tear-rift-glow"
-                    style={{ width: `${tearProgress}%` }}
-                  />
-                )}
+                  AYUDANTIA OFICIAL
+                </span>
               </div>
 
-              {/* Centro Limpio del Sobre: Sin texto redundante */}
+              {/* Parte Inferior del Sobre con Texto Limpio */}
               <div
                 style={{
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   textAlign: "center",
-                  padding: "12px 16px",
+                  zIndex: 1,
+                  paddingBottom: "10px",
                 }}
               >
-                <div
-                  style={{
-                    width: "76px",
-                    height: "76px",
-                    borderRadius: "22px",
-                    backgroundColor: "rgba(255, 255, 255, 0.08)",
-                    backdropFilter: "blur(6px)",
-                    border: "2px solid #FCD34D",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: "16px",
-                    boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
-                  }}
-                >
-                  <Sparkles size={40} color="#FBBF24" />
-                </div>
-
                 <h3
                   style={{
-                    fontSize: "21px",
+                    fontSize: "19px",
                     fontWeight: 900,
                     color: "#FFFFFF",
                     margin: "0 0 6px",
-                    textShadow: "0 2px 8px rgba(0,0,0,0.7)",
+                    textShadow: "0 2px 8px rgba(0,0,0,0.8)",
                   }}
                 >
                   {title}
@@ -589,27 +511,30 @@ export default function RewardCard({
                 <span
                   style={{
                     fontSize: "12px",
-                    fontWeight: 800,
-                    color: "#FCD34D",
-                    letterSpacing: "1px",
-                    textTransform: "uppercase",
+                    fontWeight: 700,
+                    color: "#CBD5E1",
+                    letterSpacing: "0.5px",
+                    marginBottom: "12px",
                   }}
                 >
-                  Carta de Maestria
+                  Ingenieria de Software • 2026-02
                 </span>
+
+                <div
+                  style={{
+                    padding: "6px 14px",
+                    backgroundColor: "rgba(245, 158, 11, 0.22)",
+                    borderRadius: "14px",
+                    border: "1px dashed rgba(251, 191, 36, 0.6)",
+                  }}
+                >
+                  <span style={{ fontSize: "11.5px", fontWeight: 800, color: "#FDE68A" }}>
+                    {isOpening ? "Abriendo..." : "Toca el sello para abrir"}
+                  </span>
+                </div>
               </div>
 
-              {/* Costura inferior de sellado termico foil */}
-              <div
-                style={{
-                  height: "16px",
-                  background: "repeating-linear-gradient(90deg, #F59E0B 0px, #F59E0B 3px, #78350F 3px, #78350F 6px)",
-                  borderRadius: "5px",
-                  opacity: 0.9,
-                }}
-              />
-
-              {/* Brillo foil dinamico que sigue al cursor en el sobre */}
+              {/* Reflejo especular que sigue al cursor en el sobre */}
               <div
                 style={{
                   position: "absolute",
@@ -617,9 +542,9 @@ export default function RewardCard({
                   pointerEvents: "none",
                   background: `radial-gradient(
                     circle at ${pointer.x}% ${pointer.y}%,
-                    rgba(255, 255, 255, 0.45) 0%,
-                    rgba(251, 191, 36, 0.22) 35%,
-                    transparent 65%
+                    rgba(255, 255, 255, 0.35) 0%,
+                    rgba(251, 191, 36, 0.15) 30%,
+                    transparent 60%
                   )`,
                   mixBlendMode: "overlay",
                   opacity: isInteracting ? 0.9 : 0.2,
@@ -634,17 +559,17 @@ export default function RewardCard({
               variant="accent"
               size="lg"
               icon={Zap}
-              onClick={triggerFullOpen}
+              onClick={handleOpenEnvelope}
               className="touch-btn pulse-animation"
             >
-              {isOpening ? "Abriendo Sobre..." : "Rasgar y Abrir Sobre"}
+              {isOpening ? "Rompiendo Sello..." : "Romper Sello y Abrir"}
             </Button>
           </div>
         </div>
       ) : (
-        /* 2. Carta Revelada con Sonido Holografico al Moverla y Animacion de Succion */
+        /* 2. Carta Revelada en su Esplendor Holografico 3D con Fisica Pura Desbloqueada y Audio Shimmer */
         <div
-          className="fade-in card-slide-out-slow"
+          className="fade-in"
           style={{
             display: "flex",
             flexDirection: "column",
@@ -690,14 +615,14 @@ export default function RewardCard({
               Dominio Conceptual Total
             </h2>
             <p style={{ fontSize: "14px", color: "var(--color-text-secondary)", margin: 0 }}>
-              Mueve el cursor o inclina la pantalla para apreciar el efecto holografico y el sonido interactivo.
+              Mueve el cursor libremente para inclinar la carta en 3D y escuchar el shimmer holografico.
             </p>
           </div>
 
-          {/* Contenedor 3D de la Carta */}
+          {/* Contenedor con Perspectiva 3D Profunda */}
           <div
             style={{
-              perspective: "1200px",
+              perspective: "1000px",
               width: "100%",
               maxWidth: "370px",
               display: "flex",
@@ -705,138 +630,143 @@ export default function RewardCard({
               marginBottom: "16px",
             }}
           >
+            {/* Capa de animacion de entrada / succion (sin 'forwards' para liberar el transform interior) */}
             <div
-              onMouseMove={handlePointerMove}
-              onTouchMove={handlePointerMove}
-              onMouseEnter={() => setIsInteracting(true)}
-              onMouseLeave={handlePointerLeave}
-              onTouchEnd={handlePointerLeave}
-              className={`card-pop-up ${isSuctioning ? "card-suction-slow" : ""}`}
-              style={{
-                position: "relative",
-                width: "100%",
-                maxWidth: "360px",
-                aspectRatio: "1792 / 2400",
-                borderRadius: "22px",
-                overflow: "hidden",
-                cursor: "pointer",
-                transformStyle: "preserve-3d",
-                transform: !isSuctioning
-                  ? `rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale3d(${isInteracting ? 1.04 : 1}, ${isInteracting ? 1.04 : 1}, ${isInteracting ? 1.04 : 1})`
-                  : undefined,
-                transition: isInteracting && !isSuctioning ? "transform 0.08s ease-out" : "all 0.5s ease",
-                boxShadow: isInteracting && !isSuctioning
-                  ? `0 30px 60px -10px rgba(0, 0, 0, 0.45), ${rotate.y * -2}px ${rotate.x * 2}px 35px rgba(217, 119, 6, 0.4)`
-                  : "0 20px 40px -8px rgba(0, 0, 0, 0.28)",
-                border: "2.5px solid rgba(251, 191, 36, 0.85)",
-              }}
+              className={isSuctioning ? "card-suction-slow" : "card-entrance-pop"}
+              style={{ width: "100%", maxWidth: "360px" }}
             >
-              {/* Capa 1: La Ilustracion Completa de la Carta */}
-              {!imageError ? (
-                <img
-                  src={activeImgSrc}
-                  alt={title}
-                  onError={handleImgError}
+              {/* Elemento 3D interactivo puro con libertad total de inclinacion */}
+              <div
+                onMouseMove={handlePointerMove}
+                onTouchMove={handlePointerMove}
+                onMouseEnter={() => setIsInteracting(true)}
+                onMouseLeave={handlePointerLeave}
+                onTouchEnd={handlePointerLeave}
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  aspectRatio: "1792 / 2400",
+                  borderRadius: "22px",
+                  overflow: "hidden",
+                  cursor: "pointer",
+                  transformStyle: "preserve-3d",
+                  transform: `rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale3d(${isInteracting ? 1.05 : 1}, ${isInteracting ? 1.05 : 1}, ${isInteracting ? 1.05 : 1})`,
+                  transition: isInteracting
+                    ? "transform 0.08s ease-out"
+                    : "transform 0.5s ease-out, box-shadow 0.5s ease",
+                  boxShadow: isInteracting
+                    ? `${rotate.y * -2.5}px ${rotate.x * 2.5}px 40px rgba(0, 0, 0, 0.5), 0 25px 50px rgba(0, 0, 0, 0.4), 0 0 30px rgba(245, 158, 11, 0.35)`
+                    : "0 20px 42px -8px rgba(0, 0, 0, 0.32)",
+                  border: "2.5px solid rgba(251, 191, 36, 0.85)",
+                }}
+              >
+                {/* Capa 1: La Ilustracion Completa de la Carta */}
+                {!imageError ? (
+                  <img
+                    src={activeImgSrc}
+                    alt={title}
+                    onError={handleImgError}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                      userSelect: "none",
+                      pointerEvents: "none",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      backgroundColor: "#1E293B",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "12px",
+                      color: "#FBBF24",
+                      padding: "20px",
+                      textAlign: "center",
+                    }}
+                  >
+                    <Award size={64} color="#FBBF24" />
+                    <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#FFFFFF" }}>{title}</h3>
+                    <p style={{ fontSize: "13px", color: "#94A3B8" }}>{subtitle}</p>
+                  </div>
+                )}
+
+                {/* Capa 2: Holograma Arcoiris Foil (Diffraction Sheen reactivo al angulo) */}
+                <div
                   style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    display: "block",
-                    userSelect: "none",
+                    position: "absolute",
+                    inset: 0,
+                    pointerEvents: "none",
+                    background: `linear-gradient(
+                      ${115 + rotate.y * 1.8}deg,
+                      transparent 15%,
+                      rgba(255, 0, 128, 0.38) 30%,
+                      rgba(0, 245, 255, 0.48) 45%,
+                      rgba(255, 235, 0, 0.42) 55%,
+                      rgba(16, 185, 129, 0.38) 68%,
+                      transparent 85%
+                    )`,
+                    backgroundPosition: `${pointer.x}% ${pointer.y}%`,
+                    backgroundSize: "220% 220%",
+                    mixBlendMode: "color-dodge",
+                    opacity: isInteracting ? 0.88 : 0.4,
+                    transition: "opacity 0.25s ease",
+                  }}
+                />
+
+                {/* Capa 3: Destello Especular de Luz Blanca Parallax */}
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    pointerEvents: "none",
+                    background: `radial-gradient(
+                      circle at ${pointer.x}% ${pointer.y}%,
+                      rgba(255, 255, 255, 0.85) 0%,
+                      rgba(255, 255, 255, 0.25) 25%,
+                      transparent 55%
+                    )`,
+                    mixBlendMode: "overlay",
+                    opacity: isInteracting ? 0.95 : 0.25,
+                    transition: "opacity 0.2s ease",
+                  }}
+                />
+
+                {/* Capa 4: Micro-Textura Holografica */}
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    pointerEvents: "none",
+                    background: `repeating-linear-gradient(
+                      ${45 + rotate.x}deg,
+                      rgba(255, 255, 255, 0.05) 0px,
+                      rgba(255, 255, 255, 0.05) 1.5px,
+                      transparent 1.5px,
+                      transparent 6px
+                    )`,
+                    mixBlendMode: "color-dodge",
+                    opacity: isInteracting ? 0.75 : 0.35,
+                  }}
+                />
+
+                {/* Bisel Brillante en los Bordes */}
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "20px",
+                    boxShadow: "inset 0 0 15px rgba(255, 215, 0, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.6)",
                     pointerEvents: "none",
                   }}
                 />
-              ) : (
-                <div
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    backgroundColor: "#1E293B",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "12px",
-                    color: "#FBBF24",
-                    padding: "20px",
-                    textAlign: "center",
-                  }}
-                >
-                  <Sparkles size={64} color="#FBBF24" />
-                  <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#FFFFFF" }}>{title}</h3>
-                  <p style={{ fontSize: "13px", color: "#94A3B8" }}>{subtitle}</p>
-                </div>
-              )}
-
-              {/* Capa 2: Holograma Arcoiris Foil (Diffraction Sheen) */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  pointerEvents: "none",
-                  background: `linear-gradient(
-                    ${115 + rotate.y * 1.5}deg,
-                    transparent 15%,
-                    rgba(255, 0, 128, 0.35) 30%,
-                    rgba(0, 245, 255, 0.45) 45%,
-                    rgba(255, 235, 0, 0.4) 55%,
-                    rgba(16, 185, 129, 0.35) 68%,
-                    transparent 85%
-                  )`,
-                  backgroundPosition: `${pointer.x}% ${pointer.y}%`,
-                  backgroundSize: "220% 220%",
-                  mixBlendMode: "color-dodge",
-                  opacity: isInteracting ? 0.85 : 0.4,
-                  transition: "opacity 0.25s ease",
-                }}
-              />
-
-              {/* Capa 3: Destello Especular de Luz Blanca */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  pointerEvents: "none",
-                  background: `radial-gradient(
-                    circle at ${pointer.x}% ${pointer.y}%,
-                    rgba(255, 255, 255, 0.8) 0%,
-                    rgba(255, 255, 255, 0.2) 25%,
-                    transparent 55%
-                  )`,
-                  mixBlendMode: "overlay",
-                  opacity: isInteracting ? 0.9 : 0.25,
-                  transition: "opacity 0.2s ease",
-                }}
-              />
-
-              {/* Capa 4: Micro-Textura Holografica */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  pointerEvents: "none",
-                  background: `repeating-linear-gradient(
-                    ${45 + rotate.x}deg,
-                    rgba(255, 255, 255, 0.05) 0px,
-                    rgba(255, 255, 255, 0.05) 1.5px,
-                    transparent 1.5px,
-                    transparent 6px
-                  )`,
-                  mixBlendMode: "color-dodge",
-                  opacity: isInteracting ? 0.7 : 0.35,
-                }}
-              />
-
-              {/* Bisel Brillante en los Bordes */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  borderRadius: "20px",
-                  boxShadow: "inset 0 0 15px rgba(255, 215, 0, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.6)",
-                  pointerEvents: "none",
-                }}
-              />
+              </div>
             </div>
           </div>
 
