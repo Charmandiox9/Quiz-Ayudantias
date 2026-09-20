@@ -3,6 +3,7 @@ import Card from "../components/common/Card";
 import Button from "../components/common/Button";
 import Badge from "../components/common/Badge";
 import QuestionCard from "../components/quiz/QuestionCard";
+import MistakesCarousel from "../components/quiz/MistakesCarousel";
 import {
   ArrowRight,
   RotateCcw,
@@ -10,8 +11,6 @@ import {
   Trophy,
   AlertTriangle,
   CheckCircle2,
-  XCircle,
-  BookOpen,
 } from "lucide-react";
 
 export default function SoloScreen({ ayudantia, onExit }) {
@@ -77,7 +76,6 @@ export default function SoloScreen({ ayudantia, onExit }) {
     const topicsToReview = Array.from(
       new Set(incorrectAnswers.map((item) => item.question.topic).filter(Boolean))
     );
-    const optionLabels = ["A", "B", "C", "D"];
 
     return (
       <div style={{ maxWidth: "780px", margin: "32px auto", padding: "0 16px" }}>
@@ -231,165 +229,11 @@ export default function SoloScreen({ ayudantia, onExit }) {
               </div>
             </Card>
 
-            {/* Lista detallada de preguntas erradas */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", margin: "8px 0" }}>
-                <BookOpen size={18} color="#1E2761" />
-                <h3 style={{ fontSize: "17px", fontWeight: 700, color: "#1E2761", margin: 0 }}>
-                  Revision de preguntas para practicar ({incorrectAnswers.length})
-                </h3>
-              </div>
-
-              {incorrectAnswers.map((item, idx) => {
-                const q = item.question;
-                const userOptIndex = item.selectedOption;
-                const correctOptIndex = item.correctOption;
-
-                return (
-                  <Card key={idx} style={{ padding: "20px", borderLeft: "4px solid #EF4444" }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: "10px",
-                        flexWrap: "wrap",
-                        gap: "6px",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span style={{ fontSize: "13px", fontWeight: 700, color: "#64748B" }}>
-                          Pregunta {item.questionIndex + 1} de {questions.length}
-                        </span>
-                        <Badge variant="neutral">{q.topic}</Badge>
-                      </div>
-                      <Badge variant="danger">Incorrecta</Badge>
-                    </div>
-
-                    <h4
-                      style={{
-                        fontSize: "15.5px",
-                        fontWeight: 700,
-                        color: "#0F172A",
-                        marginBottom: q.diagramSnippet ? "10px" : "14px",
-                        lineHeight: 1.45,
-                      }}
-                    >
-                      {q.q}
-                    </h4>
-
-                    {q.diagramSnippet && (
-                      <pre
-                        style={{
-                          backgroundColor: "#F8FAFC",
-                          border: "1px solid #E2E8F0",
-                          borderRadius: "8px",
-                          padding: "10px 14px",
-                          fontSize: "13px",
-                          fontFamily: "Consolas, monospace",
-                          color: "#1E2761",
-                          marginBottom: "14px",
-                          overflowX: "auto",
-                        }}
-                      >
-                        <code>{q.diagramSnippet}</code>
-                      </pre>
-                    )}
-
-                    {/* Comparativa de Respuestas */}
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
-                        gap: "10px",
-                        marginBottom: "14px",
-                      }}
-                    >
-                      {/* Tu seleccion */}
-                      <div
-                        style={{
-                          padding: "10px 12px",
-                          backgroundColor: "#FEF2F2",
-                          border: "1px solid #FECACA",
-                          borderRadius: "8px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "6px",
-                            marginBottom: "4px",
-                          }}
-                        >
-                          <XCircle size={15} color="#DC2626" />
-                          <span style={{ fontSize: "12px", fontWeight: 700, color: "#991B1B" }}>
-                            Tu respuesta ({optionLabels[userOptIndex]}):
-                          </span>
-                        </div>
-                        <p style={{ fontSize: "13px", color: "#7F1D1D", margin: 0, lineHeight: 1.4 }}>
-                          {q.opts[userOptIndex]}
-                        </p>
-                      </div>
-
-                      {/* Respuesta Correcta */}
-                      <div
-                        style={{
-                          padding: "10px 12px",
-                          backgroundColor: "#F0FDF4",
-                          border: "1px solid #BBF7D0",
-                          borderRadius: "8px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "6px",
-                            marginBottom: "4px",
-                          }}
-                        >
-                          <CheckCircle2 size={15} color="#16A34A" />
-                          <span style={{ fontSize: "12px", fontWeight: 700, color: "#166534" }}>
-                            Respuesta correcta ({optionLabels[correctOptIndex]}):
-                          </span>
-                        </div>
-                        <p style={{ fontSize: "13px", color: "#14532D", margin: 0, lineHeight: 1.4 }}>
-                          {q.opts[correctOptIndex]}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Explicacion Pedagogica */}
-                    <div
-                      style={{
-                        padding: "10px 14px",
-                        backgroundColor: "#F1F5F9",
-                        borderLeft: "3px solid #1E2761",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      <span
-                        style={{
-                          display: "block",
-                          fontSize: "11.5px",
-                          fontWeight: 700,
-                          color: "#475569",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                          marginBottom: "3px",
-                        }}
-                      >
-                        Por que es correcta esta opcion:
-                      </span>
-                      <p style={{ fontSize: "13px", color: "#334155", margin: 0, lineHeight: 1.45 }}>
-                        {q.exp}
-                      </p>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
+            {/* Carrusel de Revisión Focalizada (Sin scroll infinito) */}
+            <MistakesCarousel
+              mistakes={incorrectAnswers}
+              totalQuestions={questions.length}
+            />
           </div>
         )}
       </div>
@@ -404,6 +248,8 @@ export default function SoloScreen({ ayudantia, onExit }) {
           justifyContent: "space-between",
           alignItems: "center",
           marginBottom: "20px",
+          flexWrap: "wrap",
+          gap: "10px",
         }}
       >
         <Button variant="secondary" size="sm" icon={ArrowLeft} onClick={onExit}>
