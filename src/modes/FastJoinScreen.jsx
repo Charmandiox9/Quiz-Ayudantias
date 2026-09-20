@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { AYUDANTIAS } from "../data";
+import { getAyudantiaByCode } from "../data";
 import Card from "../components/common/Card";
 import Button from "../components/common/Button";
 import Badge from "../components/common/Badge";
@@ -8,8 +8,7 @@ import { Smartphone, Shuffle, ArrowRight, ShieldCheck, HelpCircle } from "lucide
 
 export default function FastJoinScreen({ roomCode, onJoin, onGoToHub }) {
   const cleanCode = sanitizeRoomCode(roomCode);
-  const matchingAyudantia =
-    AYUDANTIAS.find((a) => a.code.toUpperCase() === cleanCode.toUpperCase()) || AYUDANTIAS[0];
+  const matchingAyudantia = getAyudantiaByCode(cleanCode);
 
   const [nickname, setNickname] = useState(generateAnonymousAlias);
   const [validationError, setValidationError] = useState("");

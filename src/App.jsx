@@ -4,7 +4,7 @@ import HostScreen from "./modes/HostScreen";
 import PlayerScreen from "./modes/PlayerScreen";
 import SoloScreen from "./modes/SoloScreen";
 import FastJoinScreen from "./modes/FastJoinScreen";
-import { AYUDANTIAS } from "./data";
+import { AYUDANTIAS, getAyudantiaById, getAyudantiaByCode } from "./data";
 import {
   saveActiveSession,
   getActiveSession,
@@ -25,9 +25,9 @@ function getInitialState() {
   const active = getActiveSession();
   if (active && active.role === "player" && active.name && active.roomCode) {
     const matchingAyudantia =
-      AYUDANTIAS.find(
-        (a) => a.id === active.ayudantiaId || a.code.toUpperCase() === active.roomCode.toUpperCase()
-      ) || AYUDANTIAS[0];
+      (active.ayudantiaId && getAyudantiaById(active.ayudantiaId)) ||
+      (active.roomCode && getAyudantiaByCode(active.roomCode)) ||
+      AYUDANTIAS[0];
 
     return {
       view: "player",

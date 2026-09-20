@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { AYUDANTIAS } from "../data";
+import { AYUDANTIAS, getAyudantiaByCode } from "../data";
 import Card from "../components/common/Card";
 import Button from "../components/common/Button";
 import Badge from "../components/common/Badge";
@@ -8,9 +8,7 @@ import { sanitizeNickname, sanitizeRoomCode, generateAnonymousAlias } from "../u
 import { Monitor, Smartphone, BookOpen, QrCode, Shuffle } from "lucide-react";
 
 export default function HubScreen({ onStartHost, onJoinPlayer, onStartSolo, initialRoomCode = "" }) {
-  const matchingAyudantia = AYUDANTIAS.find(
-    (a) => a.code.toUpperCase() === (initialRoomCode || "").toUpperCase()
-  );
+  const matchingAyudantia = initialRoomCode ? getAyudantiaByCode(initialRoomCode) : null;
 
   const [selectedAyudantiaId, setSelectedAyudantiaId] = useState(
     matchingAyudantia ? matchingAyudantia.id : AYUDANTIAS[0].id
