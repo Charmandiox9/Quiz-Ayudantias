@@ -14,7 +14,7 @@ export const ay03Solid = {
     {
       id: 1,
       topic: "Fundamentos de Diseño",
-      q: "Según los síntomas de código sin diseño explicados en la sesión, ¿qué es la 'Fragilidad' en el software?",
+      q: "Según los síntomas de código sin diseño explicados en la sesión, ¿qué es la \"Fragilidad\" en el software?",
       opts: [
         "La necesidad de modificar decenas de clases vinculadas al intentar hacer un cambio pequeño.",
         "Corregir un error en una parte del sistema provoca fallas imprevistas en módulos no relacionados.",
@@ -42,13 +42,13 @@ export const ay03Solid = {
       topic: "S — Single Responsibility",
       q: "¿Cuál de las siguientes situaciones es un ejemplo evidente de violación del principio SRP?",
       opts: [
-        "Una clase 'Manager' que calcula cobros, escribe directo en la base de datos y manda correos.",
+        "Una clase \"Manager\" que calcula cobros, escribe directo en la base de datos y manda correos.",
         "Una clase que declara variables privadas y expone métodos públicos con nombres claros.",
         "Una clase de negocio que define constructores sobrecargados con distintos argumentos.",
         "Un archivo de configuración que almacena credenciales de acceso para conectarse al servidor."
       ],
       ans: 0,
-      exp: "La típica 'God Class' o 'Manager' que mezcla reglas de negocio, persistencia SQL y envío de emails tiene múltiples motivos para cambiar, violando directamente SRP."
+      exp: "La típica \"God Class\" o \"Manager\" que mezcla reglas de negocio, persistencia SQL y envío de emails tiene múltiples motivos para cambiar, violando directamente SRP."
     },
     {
       id: 4,
@@ -80,8 +80,8 @@ export const ay03Solid = {
     {
       id: 6,
       topic: "O — Open / Closed",
-      diagramSnippet: "public double calcular(String tipo) {\n  if (tipo == 'estudio') return 1000;\n  else if (tipo == 'auditorio') return 5000;\n}",
-      q: "Al querer agregar una sala 'Laboratorio', ¿por qué la solución con if/else rígido viola el principio OCP?",
+      diagramSnippet: "public double calcular(String tipo) {\n  if (tipo == \"estudio\") return 1000;\n  else if (tipo == \"auditorio\") return 5000;\n}",
+      q: "Al querer agregar una sala \"Laboratorio\", ¿por qué la solución con if/else rígido viola el principio OCP?",
       opts: [
         "Porque obliga a editar código ya probado, arriesgando introducir errores en las otras salas.",
         "Porque las instrucciones condicionales if/else están prohibidas en aplicaciones profesionales.",
@@ -120,7 +120,7 @@ export const ay03Solid = {
     {
       id: 9,
       topic: "L — Liskov Substitution",
-      q: "¿Qué nos enseña la analogía del 'pato a pilas' sobre la herencia en programación orientada a objetos?",
+      q: "¿Qué nos enseña la analogía del \"pato a pilas\" sobre la herencia en programación orientada a objetos?",
       opts: [
         "Que no es recomendable modelar objetos del mundo real dentro de aplicaciones informáticas.",
         "Que heredar solo por parecido visual rompe el diseño si la hija no puede cumplir el contrato.",
@@ -128,7 +128,7 @@ export const ay03Solid = {
         "Que las funciones que requieren energía o baterías deben ejecutarse siempre en segundo plano."
       ],
       ans: 1,
-      exp: "No heredes solo por 'parecido' o por reutilizar código. Si la clase hija no puede cumplir lo que el padre promete (como un pingüino volando), la herencia está rota."
+      exp: "No heredes solo por \"parecido\" o por reutilizar código. Si la clase hija no puede cumplir lo que el padre promete (como un pingüino volando), la herencia está rota."
     },
     {
       id: 10,
@@ -188,7 +188,7 @@ export const ay03Solid = {
       id: 14,
       topic: "D — Dependency Inversion",
       diagramSnippet: "class Notificador {\n  private ServicioEmail email;\n  public Notificador() {\n    this.email = new ServicioEmail(); // (?)\n  }\n}",
-      q: "En la clase Notificador, ¿cuál es el gran problema práctico de hacer 'new ServicioEmail()' dentro del constructor?",
+      q: "En la clase Notificador, ¿cuál es el gran problema práctico de hacer \"new ServicioEmail()\" dentro del constructor?",
       opts: [
         "Que instanciar objetos con la palabra new consume demasiada memoria en el servidor web.",
         "Que suelda la clase rígidamente, impidiendo inyectar un Mock para hacer pruebas con JUnit.",
@@ -201,7 +201,7 @@ export const ay03Solid = {
     {
       id: 15,
       topic: "SOLID y Patrones de Diseño",
-      q: "¿Qué principios SOLID fundamentan principalmente al patrón de diseño 'Strategy' (Estrategia) visto en clase?",
+      q: "¿Qué principios SOLID fundamentan principalmente al patrón de diseño \"Strategy\" (Estrategia) visto en clase?",
       opts: [
         "Los principios S e I, porque organizan métodos pequeños dentro de paquetes independientes.",
         "El principio L únicamente, porque se limita a sobreescribir el comportamiento del padre.",

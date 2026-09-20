@@ -47,7 +47,7 @@ export const ay02Uml = {
         "El 99% de las búsquedas de salas deben responder en un tiempo menor a 1 segundo."
       ],
       ans: 3,
-      exp: "Un Requisito No Funcional (el CÓMO) no debe ser ambiguo como 'debe ser rápido' o 'seguro', sino verificable objetivamente con una métrica cuantificable (ejemplo: 99% en < 1 segundo)."
+      exp: "Un Requisito No Funcional (el CÓMO) no debe ser ambiguo como \"debe ser rápido\" o \"seguro\", sino verificable objetivamente con una métrica cuantificable (ejemplo: 99% en < 1 segundo)."
     },
     {
       id: 4,
@@ -78,7 +78,7 @@ export const ay02Uml = {
     {
       id: 6,
       topic: "Criterio INVEST",
-      q: "Dentro del criterio INVEST para redactar buenas Historias de Usuario, ¿qué significa que una historia sea 'Negotiable' (Negociable)?",
+      q: "Dentro del criterio INVEST para redactar buenas Historias de Usuario, ¿qué significa que una historia sea \"Negotiable\" (Negociable)?",
       opts: [
         "Que su alcance es ajustable mediante la conversación continua entre el equipo y el cliente.",
         "Que carece de dependencias técnicas con respecto a otras historias del product backlog.",
@@ -91,7 +91,7 @@ export const ay02Uml = {
     {
       id: 7,
       topic: "Casos de Uso (Estructura)",
-      q: "En la estructura formal de un Caso de Uso, ¿a qué corresponde el 'flujo normal' o 'camino feliz'?",
+      q: "En la estructura formal de un Caso de Uso, ¿a qué corresponde el \"flujo normal\" o \"camino feliz\"?",
       opts: [
         "Al catálogo completo de fallas y excepciones registrado con códigos como 2a y 3b.",
         "A la secuencia principal de pasos exitosos cuando todo funciona según lo esperado.",
@@ -104,7 +104,7 @@ export const ay02Uml = {
     {
       id: 8,
       topic: "Diagrama de Casos de Uso",
-      q: "En el Diagrama de Casos de Uso (UML) del sistema de reservas, ¿cuál es el rol formal de un 'Actor'?",
+      q: "En el Diagrama de Casos de Uso (UML) del sistema de reservas, ¿cuál es el rol formal de un \"Actor\"?",
       opts: [
         "Una función o servicio interno programado dentro de la frontera del sistema de software.",
         "Una clase abstracta de datos encargada de validar la autenticación de los usuarios.",
@@ -117,7 +117,7 @@ export const ay02Uml = {
     {
       id: 9,
       topic: "Relaciones en Casos de Uso",
-      q: "En el caso de reservas analizado, ¿por qué 'Crear Reserva' se conecta mediante «include» hacia 'Enviar Notificación'?",
+      q: "En el caso de reservas analizado, ¿por qué \"Crear Reserva\" se conecta mediante «include» hacia \"Enviar Notificación\"?",
       opts: [
         "Porque enviar la notificación es un subproceso obligatorio que siempre se debe ejecutar.",
         "Porque enviar el mensaje es una opción facultativa que el usuario puede desmarcar si desea.",
@@ -169,7 +169,7 @@ export const ay02Uml = {
     {
       id: 13,
       topic: "Diagrama de Actividad",
-      q: "En el Diagrama de Actividad de 'Crear Reserva', ¿cuál es la finalidad técnica de los carriles o Swimlanes (Estudiante y Sistema)?",
+      q: "En el Diagrama de Actividad de \"Crear Reserva\", ¿cuál es la finalidad técnica de los carriles o Swimlanes (Estudiante y Sistema)?",
       opts: [
         "Medir la tasa de fallos de red y el consumo de memoria RAM durante cada etapa del proceso.",
         "Dividir los archivos fuente en módulos de frontend y controladores backend de la aplicación.",
@@ -177,7 +177,7 @@ export const ay02Uml = {
         "Definir los permisos criptográficos requeridos para modificar las tablas de base de datos."
       ],
       ans: 2,
-      exp: "Los Swimlanes organizan visualmente las actividades asignando responsabilidades: en el ejemplo, 'Seleccionar fecha' compete a Estudiante, mientras 'Verificar disponibilidad' compete a Sistema."
+      exp: "Los Swimlanes organizan visualmente las actividades asignando responsabilidades: en el ejemplo, \"Seleccionar fecha\" compete a Estudiante, mientras \"Verificar disponibilidad\" compete a Sistema."
     },
     {
       id: 14,
@@ -195,7 +195,7 @@ export const ay02Uml = {
     {
       id: 15,
       topic: "Diagrama de Secuencia",
-      q: "En el Diagrama de Secuencia de 'Crear Reserva', ¿cómo se distinguen los mensajes síncronos de los mensajes de retorno?",
+      q: "En el Diagrama de Secuencia de \"Crear Reserva\", ¿cómo se distinguen los mensajes síncronos de los mensajes de retorno?",
       opts: [
         "Mensaje síncrono con línea punteada abierta y retorno con rombo sólido en el participante.",
         "Ambos tipos se grafican de forma idéntica sin emplear ningún tipo de punta direccional.",
