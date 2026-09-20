@@ -46,6 +46,7 @@ export default function RewardCard({
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [generatedBlobUrl, setGeneratedBlobUrl] = useState(null);
+  const [sealLogoError, setSealLogoError] = useState(false);
 
   // Estados para la fisica 3D interactiva del raton
   const [pointer, setPointer] = useState({ x: 50, y: 50 });
@@ -53,6 +54,7 @@ export default function RewardCard({
   const [isInteracting, setIsInteracting] = useState(false);
 
   const lastShimmerTimeRef = useRef(0);
+  const lastRustleTimeRef = useRef(0);
   const lastPosRef = useRef({ x: 50, y: 50 });
   const downloadBtnRef = useRef(null);
 
@@ -65,10 +67,7 @@ export default function RewardCard({
   }, [title]);
 
   /**
-   * Apertura física y cinematográfica del sobre con sello de cera.
-   * 1. Rompe el sello de cera con sonido de quiebre (playTear).
-   * 2. Levanta la solapa triangular en 3D (rotateX 175deg).
-   * 3. Desliza la carta hacia arriba y reproduce la fanfarria (playReveal).
+   * Apertura física y elegante del sobre con sello de cera.
    */
   const handleOpenEnvelope = () => {
     if (isOpening || isOpened) return;
@@ -95,10 +94,58 @@ export default function RewardCard({
   };
 
   /**
-   * Controlador de movimiento 3D con amplio rango de inclinación (hasta 20 grados)
-   * y sonido cristalino holográfico al mover la carta revelada.
+   * Movimiento 3D sobre el sobre cerrado (con sonido sutil de papel).
    */
-  const handlePointerMove = (e) => {
+  const handleEnvelopePointerMove = (e) => {
+    const element = e.currentTarget;
+    const rect = element.getBoundingClientRect();
+    const clientX =
+      e.clientX !== undefined
+        ? e.clientX
+        : e.touches && e.touches[0]
+        ? e.touches[0].clientX
+        : rect.left + rect.width / 2;
+    const clientY =
+      e.clientY !== undefined
+        ? e.clientY
+        : e.touches && e.touches[0]
+        ? e.touches[0].clientY
+        : rect.top + rect.height / 2;
+
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+
+    const px = Math.min(Math.max((x / rect.width) * 100, 0), 100);
+    const py = Math.min(Math.max((y / rect.height) * 100, 0), 100);
+
+    const rotX = ((py - 50) / 50) * -12;
+    const rotY = ((px - 50) / 50) * 12;
+
+    setPointer({ x: px, y: py });
+    setRotate({ x: rotX, y: rotY });
+    setIsInteracting(true);
+
+    // Sonido sutil de papel al mover el sobre
+    const now = Date.now();
+    const dx = Math.abs(px - lastPosRef.current.x);
+    const dy = Math.abs(py - lastPosRef.current.y);
+
+    if (dx + dy > 3 && now - lastRustleTimeRef.current > 140) {
+      lastRustleTimeRef.current = now;
+      lastPosRef.current = { x: px, y: py };
+      try {
+        audioService.playPaperRustle();
+      } catch {
+        // Audio fallback
+      }
+    }
+  };
+
+  /**
+   * Movimiento 3D fluido y natural sobre la carta holográfica.
+   * Sin desincronizaciones de ejes ni bloqueos por animaciones CSS.
+   */
+  const handleCardPointerMove = (e) => {
     if (isSuctioning) return;
     const element = e.currentTarget;
     const rect = element.getBoundingClientRect();
@@ -121,30 +168,28 @@ export default function RewardCard({
     const px = Math.min(Math.max((x / rect.width) * 100, 0), 100);
     const py = Math.min(Math.max((y / rect.height) * 100, 0), 100);
 
-    // Amplitud 3D generosa y visible (hasta 20 grados)
-    const rotX = ((py - 50) / 50) * -20;
-    const rotY = ((px - 50) / 50) * 20;
+    // Ejes con rotacion fisica coherente y sensible (16 grados de amplitud)
+    const rotX = ((py - 50) / 50) * -16;
+    const rotY = ((px - 50) / 50) * 16;
 
     setPointer({ x: px, y: py });
     setRotate({ x: rotX, y: rotY });
     setIsInteracting(true);
 
-    // Sonido al mover la carta (holo shimmer sutil modulado por el angulo)
-    if (isOpened && !isOpening) {
-      const now = Date.now();
-      const dx = Math.abs(px - lastPosRef.current.x);
-      const dy = Math.abs(py - lastPosRef.current.y);
+    // Sonido cristalino holografico al mover la carta
+    const now = Date.now();
+    const dx = Math.abs(px - lastPosRef.current.x);
+    const dy = Math.abs(py - lastPosRef.current.y);
 
-      if (dx + dy > 3.5 && now - lastShimmerTimeRef.current > 120) {
-        lastShimmerTimeRef.current = now;
-        lastPosRef.current = { x: px, y: py };
+    if (dx + dy > 3.5 && now - lastShimmerTimeRef.current > 130) {
+      lastShimmerTimeRef.current = now;
+      lastPosRef.current = { x: px, y: py };
 
-        const pitchRatio = 1 + (rotX + rotY) / 60;
-        try {
-          audioService.playHoloShimmer(pitchRatio);
-        } catch {
-          // Audio fallback
-        }
+      const pitchRatio = 1 + (rotX + rotY) / 60;
+      try {
+        audioService.playHoloShimmer(pitchRatio);
+      } catch {
+        // Audio fallback
       }
     }
   };
@@ -243,7 +288,6 @@ export default function RewardCard({
 
       ctx.drawImage(imgBitmap, 0, 0, canvas.width, canvas.height);
 
-      // Sombra suave para contraste
       ctx.shadowColor = "rgba(0, 0, 0, 0.95)";
       ctx.shadowBlur = 5;
       ctx.shadowOffsetX = 0;
@@ -320,7 +364,7 @@ export default function RewardCard({
         padding: "10px 0 24px",
       }}
     >
-      {/* 1. Experiencia del Sobre Clásico con Sello de Cera Realista y Física 3D */}
+      {/* 1. Experiencia del Sobre Limpio con Sello de Cera (Sin textos redundantes) */}
       {!isOpened ? (
         <div
           className="fade-in wax-envelope-perspective"
@@ -373,10 +417,10 @@ export default function RewardCard({
             style={{
               fontSize: "14px",
               color: "var(--color-text-secondary)",
-              marginBottom: "18px",
+              marginBottom: "20px",
             }}
           >
-            Presiona el sello de cera para romperlo y abrir el sobre.
+            Has desbloqueado el certificado oficial de maestria conceptual.
           </p>
 
           {/* Contenedor 3D del Sobre de Cera */}
@@ -387,12 +431,12 @@ export default function RewardCard({
               maxWidth: "340px",
               display: "flex",
               justifyContent: "center",
-              marginBottom: "18px",
+              marginBottom: "20px",
             }}
           >
             <div
-              onMouseMove={handlePointerMove}
-              onTouchMove={handlePointerMove}
+              onMouseMove={handleEnvelopePointerMove}
+              onTouchMove={handleEnvelopePointerMove}
               onMouseEnter={() => setIsInteracting(true)}
               onMouseLeave={handlePointerLeave}
               onTouchEnd={handlePointerLeave}
@@ -407,7 +451,7 @@ export default function RewardCard({
                 overflow: "hidden",
                 transformStyle: "preserve-3d",
                 transform: `rotateX(${rotate.x * 0.8}deg) rotateY(${rotate.y * 0.8}deg) scale3d(${isInteracting ? 1.03 : 1}, ${isInteracting ? 1.03 : 1}, ${isInteracting ? 1.03 : 1})`,
-                transition: isInteracting ? "transform 0.08s ease-out" : "all 0.5s ease",
+                transition: isInteracting ? "transform 0.04s ease-out" : "all 0.5s ease",
                 boxShadow: isInteracting
                   ? `0 28px 55px -10px rgba(15, 23, 42, 0.6), ${rotate.y * -2}px ${rotate.x * 2}px 32px rgba(245, 158, 11, 0.35)`
                   : "0 20px 42px -8px rgba(15, 23, 42, 0.45)",
@@ -416,7 +460,7 @@ export default function RewardCard({
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
-                padding: "20px 16px",
+                padding: "22px 18px",
                 color: "#FFFFFF",
                 cursor: "pointer",
               }}
@@ -424,54 +468,63 @@ export default function RewardCard({
               {/* Solapa Triangular Superior 3D */}
               <div className={`wax-flap-3d ${isOpening ? "is-open" : ""}`} />
 
-              {/* Sello de Cera Realista 3D */}
+              {/* Sello de Cera Realista 3D con soporte para logo personalizado */}
               <div
                 className={`wax-seal-realistic ${isOpening ? "wax-seal-cracking" : ""}`}
                 onClick={handleOpenEnvelope}
-                title="Toca para romper el sello"
               >
                 <div
                   style={{
-                    width: "44px",
-                    height: "44px",
+                    width: "46px",
+                    height: "46px",
                     borderRadius: "50%",
                     border: "1.5px solid rgba(254, 202, 202, 0.45)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     boxShadow: "inset 0 1px 4px rgba(0, 0, 0, 0.6)",
+                    overflow: "hidden",
+                    padding: "4px",
                   }}
                 >
-                  <Award size={25} color="#FEF08A" />
+                  {!sealLogoError ? (
+                    <img
+                      src="/assets/seal_logo.svg"
+                      alt="Sello Oficial"
+                      onError={() => setSealLogoError(true)}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "contain",
+                        filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))",
+                      }}
+                    />
+                  ) : (
+                    <Award size={25} color="#FEF08A" />
+                  )}
                 </div>
               </div>
 
-              {/* Contenido interior peeking al abrirse */}
+              {/* Halo de luz dorado que emana naturalmente al abrirse el sobre (sin recuadros) */}
               {isOpening && (
                 <div
                   style={{
                     position: "absolute",
-                    top: "30%",
+                    top: "20%",
                     left: "50%",
                     transform: "translateX(-50%)",
                     width: "80%",
-                    height: "50%",
-                    backgroundColor: "#1E293B",
-                    borderRadius: "12px",
-                    border: "2px solid #FCD34D",
+                    height: "40%",
+                    background: "radial-gradient(circle, rgba(254, 240, 138, 0.55) 0%, rgba(245, 158, 11, 0.25) 50%, transparent 80%)",
+                    filter: "blur(14px)",
+                    pointerEvents: "none",
                     zIndex: 2,
-                    boxShadow: "0 10px 25px rgba(251, 191, 36, 0.5)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
                   }}
-                >
-                  <Sparkles size={32} color="#FBBF24" />
-                </div>
+                />
               )}
 
               {/* Encabezado Superior del Sobre */}
-              <div style={{ zIndex: 1, paddingTop: "8px" }}>
+              <div style={{ zIndex: 1 }}>
                 <span
                   style={{
                     fontSize: "11px",
@@ -485,7 +538,7 @@ export default function RewardCard({
                 </span>
               </div>
 
-              {/* Parte Inferior del Sobre con Texto Limpio */}
+              {/* Parte Inferior del Sobre con Diseno Limpio y Elegante (Sin textos sobrantes) */}
               <div
                 style={{
                   display: "flex",
@@ -493,12 +546,12 @@ export default function RewardCard({
                   alignItems: "center",
                   textAlign: "center",
                   zIndex: 1,
-                  paddingBottom: "10px",
+                  paddingBottom: "8px",
                 }}
               >
                 <h3
                   style={{
-                    fontSize: "19px",
+                    fontSize: "20px",
                     fontWeight: 900,
                     color: "#FFFFFF",
                     margin: "0 0 6px",
@@ -514,24 +567,10 @@ export default function RewardCard({
                     fontWeight: 700,
                     color: "#CBD5E1",
                     letterSpacing: "0.5px",
-                    marginBottom: "12px",
                   }}
                 >
                   Ingenieria de Software • 2026-02
                 </span>
-
-                <div
-                  style={{
-                    padding: "6px 14px",
-                    backgroundColor: "rgba(245, 158, 11, 0.22)",
-                    borderRadius: "14px",
-                    border: "1px dashed rgba(251, 191, 36, 0.6)",
-                  }}
-                >
-                  <span style={{ fontSize: "11.5px", fontWeight: 800, color: "#FDE68A" }}>
-                    {isOpening ? "Abriendo..." : "Toca el sello para abrir"}
-                  </span>
-                </div>
               </div>
 
               {/* Reflejo especular que sigue al cursor en el sobre */}
@@ -567,7 +606,7 @@ export default function RewardCard({
           </div>
         </div>
       ) : (
-        /* 2. Carta Revelada en su Esplendor Holografico 3D con Fisica Pura Desbloqueada y Audio Shimmer */
+        /* 2. Carta Revelada en 3D Fluido con Respuesta Instantanea y Audio Shimmer */
         <div
           className="fade-in"
           style={{
@@ -615,11 +654,11 @@ export default function RewardCard({
               Dominio Conceptual Total
             </h2>
             <p style={{ fontSize: "14px", color: "var(--color-text-secondary)", margin: 0 }}>
-              Mueve el cursor libremente para inclinar la carta en 3D y escuchar el shimmer holografico.
+              Mueve el cursor libremente para apreciar la inclinacion 3D y el shimmer holografico.
             </p>
           </div>
 
-          {/* Contenedor con Perspectiva 3D Profunda */}
+          {/* Contenedor con Perspectiva 3D */}
           <div
             style={{
               perspective: "1000px",
@@ -630,15 +669,15 @@ export default function RewardCard({
               marginBottom: "16px",
             }}
           >
-            {/* Capa de animacion de entrada / succion (sin 'forwards' para liberar el transform interior) */}
+            {/* Capa de entrada / succion desacoplada para evitar bloqueos CSS de transform */}
             <div
               className={isSuctioning ? "card-suction-slow" : "card-entrance-pop"}
               style={{ width: "100%", maxWidth: "360px" }}
             >
-              {/* Elemento 3D interactivo puro con libertad total de inclinacion */}
+              {/* Elemento 3D interactivo con seguimiento fluido sin lag */}
               <div
-                onMouseMove={handlePointerMove}
-                onTouchMove={handlePointerMove}
+                onMouseMove={handleCardPointerMove}
+                onTouchMove={handleCardPointerMove}
                 onMouseEnter={() => setIsInteracting(true)}
                 onMouseLeave={handlePointerLeave}
                 onTouchEnd={handlePointerLeave}
@@ -652,7 +691,7 @@ export default function RewardCard({
                   transformStyle: "preserve-3d",
                   transform: `rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale3d(${isInteracting ? 1.05 : 1}, ${isInteracting ? 1.05 : 1}, ${isInteracting ? 1.05 : 1})`,
                   transition: isInteracting
-                    ? "transform 0.08s ease-out"
+                    ? "transform 0.04s ease-out"
                     : "transform 0.5s ease-out, box-shadow 0.5s ease",
                   boxShadow: isInteracting
                     ? `${rotate.y * -2.5}px ${rotate.x * 2.5}px 40px rgba(0, 0, 0, 0.5), 0 25px 50px rgba(0, 0, 0, 0.4), 0 0 30px rgba(245, 158, 11, 0.35)`
@@ -697,7 +736,7 @@ export default function RewardCard({
                   </div>
                 )}
 
-                {/* Capa 2: Holograma Arcoiris Foil (Diffraction Sheen reactivo al angulo) */}
+                {/* Capa 2: Holograma Arcoiris Foil reactivo al angulo */}
                 <div
                   style={{
                     position: "absolute",
