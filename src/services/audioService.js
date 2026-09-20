@@ -270,14 +270,56 @@ class QuizAudioService {
     } catch {}
   }
 
+  playCardReturn() {
+    this.ensureContext();
+    if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+
+      // Deslizamiento ascendente suave inverso a la succion
+      const swooshOsc = this.ctx.createOscillator();
+      const swooshGain = this.ctx.createGain();
+      swooshOsc.type = "sine";
+      swooshOsc.frequency.setValueAtTime(90, now);
+      swooshOsc.frequency.exponentialRampToValueAtTime(520, now + 0.22);
+
+      swooshGain.gain.setValueAtTime(0.0001, now);
+      swooshGain.gain.linearRampToValueAtTime(0.22, now + 0.08);
+      swooshGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+
+      swooshOsc.connect(swooshGain);
+      swooshGain.connect(this.sfxGain);
+      swooshOsc.start(now);
+      swooshOsc.stop(now + 0.25);
+
+      // Toque sutil de asentamiento al aterrizar la carta
+      const popOsc = this.ctx.createOscillator();
+      const popGain = this.ctx.createGain();
+      popOsc.type = "triangle";
+      popOsc.frequency.setValueAtTime(420, now + 0.18);
+      popOsc.frequency.exponentialRampToValueAtTime(140, now + 0.28);
+
+      popGain.gain.setValueAtTime(0.0001, now);
+      popGain.gain.setValueAtTime(0.18, now + 0.18);
+      popGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+
+      popOsc.connect(popGain);
+      popGain.connect(this.sfxGain);
+      popOsc.start(now + 0.18);
+      popOsc.stop(now + 0.32);
+    } catch {}
+  }
+
   
   playHoloShimmer(pitchRatio = 1.0) {
     this.ensureContext();
     if (!this.ctx) return;
     try {
       const now = this.ctx.currentTime;
-      const baseFreq = 1600 * Math.max(0.6, Math.min(1.8, pitchRatio));
-      const harmonics = [baseFreq, baseFreq * 1.5, baseFreq * 2.0];
+      // Resonancia armonica cristalina calida y lenta (D5, A5, D6)
+      const clampedPitch = Math.max(0.75, Math.min(1.35, pitchRatio));
+      const baseFreq = 587.33 * clampedPitch;
+      const harmonics = [baseFreq, baseFreq * 1.498, baseFreq * 2.0];
 
       harmonics.forEach((freq, idx) => {
         const osc = this.ctx.createOscillator();
@@ -285,52 +327,55 @@ class QuizAudioService {
 
         osc.type = "sine";
         osc.frequency.setValueAtTime(freq, now);
-        osc.frequency.exponentialRampToValueAtTime(freq * 1.08, now + 0.12);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.02, now + 0.38);
 
-        const targetVol = 0.07 / (idx + 1);
-        gain.gain.setValueAtTime(targetVol, now);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+        // Volumen muy sutil y decadencia suave (sin tintineos estridentes)
+        const targetVol = 0.02 / (idx + 1);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(targetVol, now + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
 
         osc.connect(gain);
         gain.connect(this.sfxGain);
 
         osc.start(now);
-        osc.stop(now + 0.15);
+        osc.stop(now + 0.44);
       });
     } catch {}
   }
 
-  
   playPaperRustle() {
     this.ensureContext();
     if (!this.ctx) return;
     try {
       const now = this.ctx.currentTime;
-      const bufferSize = Math.floor(this.ctx.sampleRate * 0.08);
+      // Deslizamiento suave de papel de 320ms con filtro paso bajo calido (sin golpeteo)
+      const bufferSize = Math.floor(this.ctx.sampleRate * 0.32);
       const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
       const data = buffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) {
-        data[i] = (Math.random() * 2 - 1) * 0.4;
+        data[i] = (Math.random() * 2 - 1) * 0.22;
       }
       const noise = this.ctx.createBufferSource();
       noise.buffer = buffer;
 
       const filter = this.ctx.createBiquadFilter();
-      filter.type = "bandpass";
-      filter.frequency.setValueAtTime(680, now);
-      filter.frequency.exponentialRampToValueAtTime(320, now + 0.07);
-      filter.Q.value = 1.4;
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(400, now);
+      filter.frequency.exponentialRampToValueAtTime(150, now + 0.3);
+      filter.Q.value = 0.6;
 
       const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime(0.04, now);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.075);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(0.015, now + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.31);
 
       noise.connect(filter);
       filter.connect(gain);
       gain.connect(this.sfxGain);
 
       noise.start(now);
-      noise.stop(now + 0.08);
+      noise.stop(now + 0.32);
     } catch {}
   }
 

@@ -558,29 +558,26 @@ input, button, select, textarea {
   transform: rotateX(175deg);
 }
 
-/* Sello de cera 3D */
+/* Sello de cera 3D Autentico */
 .wax-seal-realistic {
   position: absolute;
   top: 48%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 66px;
-  height: 66px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #DC2626 0%, #991B1B 60%, #450A0A 100%);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.65), inset 0 2px 4px rgba(255, 255, 255, 0.4), inset 0 -3px 6px rgba(0, 0, 0, 0.6);
-  border: 2px solid rgba(254, 202, 202, 0.4);
+  width: 82px;
+  height: 82px;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 5;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.22s ease;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.75));
 }
 
 .wax-seal-realistic:hover {
   transform: translate(-50%, -50%) scale(1.08);
-  box-shadow: 0 10px 25px rgba(220, 38, 38, 0.6), inset 0 2px 5px rgba(255, 255, 255, 0.5);
+  filter: drop-shadow(0 14px 24px rgba(0, 0, 0, 0.85)) brightness(1.05);
 }
 
 .wax-seal-cracking {

@@ -53,9 +53,6 @@ export default function RewardCard({
   const [rotate, setRotate] = useState({ x: 0, y: 0 });
   const [isInteracting, setIsInteracting] = useState(false);
 
-  const lastShimmerTimeRef = useRef(0);
-  const lastRustleTimeRef = useRef(0);
-  const lastPosRef = useRef({ x: 50, y: 50 });
   const downloadBtnRef = useRef(null);
 
   const activeImgSrc = customSrcOverride || mascotSrc || "/assets/ay03_solid.png";
@@ -90,6 +87,11 @@ export default function RewardCard({
     setTimeout(() => {
       setIsOpened(true);
       setIsOpening(false);
+      try {
+        audioService.playCardReturn();
+      } catch {
+        // Audio fallback
+      }
     }, 1250);
   };
 
@@ -125,25 +127,11 @@ export default function RewardCard({
     setRotate({ x: rotX, y: rotY });
     setIsInteracting(true);
 
-    // Sonido sutil de papel al mover el sobre
-    const now = Date.now();
-    const dx = Math.abs(px - lastPosRef.current.x);
-    const dy = Math.abs(py - lastPosRef.current.y);
-
-    if (dx + dy > 3 && now - lastRustleTimeRef.current > 140) {
-      lastRustleTimeRef.current = now;
-      lastPosRef.current = { x: px, y: py };
-      try {
-        audioService.playPaperRustle();
-      } catch {
-        // Audio fallback
-      }
-    }
   };
 
   /**
-   * Movimiento 3D fluido y natural sobre la carta holográfica.
-   * Sin desincronizaciones de ejes ni bloqueos por animaciones CSS.
+   * Movimiento 3D fluido y natural sobre la carta holografica.
+   * Inclinacion puramente visual, suave y proporcional (sin ruidos artificiales de cursor).
    */
   const handleCardPointerMove = (e) => {
     if (isSuctioning) return;
@@ -168,30 +156,13 @@ export default function RewardCard({
     const px = Math.min(Math.max((x / rect.width) * 100, 0), 100);
     const py = Math.min(Math.max((y / rect.height) * 100, 0), 100);
 
-    // Ejes con rotacion fisica coherente y sensible (16 grados de amplitud)
-    const rotX = ((py - 50) / 50) * -16;
-    const rotY = ((px - 50) / 50) * 16;
+    // Inclinacion proporcional a la relacion de aspecto (11 grados X, 13 grados Y)
+    const rotX = -((py - 50) / 50) * 11;
+    const rotY = ((px - 50) / 50) * 13;
 
     setPointer({ x: px, y: py });
     setRotate({ x: rotX, y: rotY });
     setIsInteracting(true);
-
-    // Sonido cristalino holografico al mover la carta
-    const now = Date.now();
-    const dx = Math.abs(px - lastPosRef.current.x);
-    const dy = Math.abs(py - lastPosRef.current.y);
-
-    if (dx + dy > 3.5 && now - lastShimmerTimeRef.current > 130) {
-      lastShimmerTimeRef.current = now;
-      lastPosRef.current = { x: px, y: py };
-
-      const pitchRatio = 1 + (rotX + rotY) / 60;
-      try {
-        audioService.playHoloShimmer(pitchRatio);
-      } catch {
-        // Audio fallback
-      }
-    }
   };
 
   const handlePointerLeave = () => {
@@ -288,33 +259,56 @@ export default function RewardCard({
 
       ctx.drawImage(imgBitmap, 0, 0, canvas.width, canvas.height);
 
-      ctx.shadowColor = "rgba(0, 0, 0, 0.95)";
-      ctx.shadowBlur = 5;
+      // Micro-estampado discreto de autenticidad DENTRO del marco interior de la carta
+      // Al ser un lienzo de 1792x2400, el tamano de 16px es sutil a simple vista
+      // pero completamente nitido y legible al hacer zoom en el PNG descargado.
+      ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
+      ctx.shadowBlur = 4;
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 1;
 
-      const footerY = canvas.height - 24;
+      const stampY = canvas.height - 68;
+      const stampColor = "rgba(245, 230, 200, 0.75)";
 
-      // Izquierda: ID unico
-      ctx.fillStyle = "#F59E0B";
-      ctx.font = "bold 20px Consolas, monospace";
+      // Izquierda: ID unico de serie
+      ctx.fillStyle = stampColor;
+      ctx.font = "bold 16px Consolas, monospace";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      ctx.fillText(`ID: ${uniqueId}`, 68, footerY);
+      ctx.fillText(`ID: ${uniqueId}`, 92, stampY);
 
       // Centro: Semestre y Ramo
-      ctx.fillStyle = "#F1E3C6";
-      ctx.font = "bold 19px system-ui, -apple-system, sans-serif";
+      ctx.fillStyle = stampColor;
+      ctx.font = "600 15px system-ui, -apple-system, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("Ingenieria de Software • 2026-02", canvas.width / 2, footerY);
+      ctx.fillText("Ingenieria de Software • 2026-02", canvas.width / 2, stampY);
 
-      // Derecha: Usuario de GitHub @Marton1123
-      ctx.fillStyle = "#FCD34D";
-      ctx.font = "bold 20px Consolas, monospace";
+      // Derecha: Logo de GitHub + Usuario @Marton1123
+      ctx.font = "bold 16px Consolas, monospace";
+      const userText = "@Marton1123";
+      const textWidth = ctx.measureText(userText).width;
+      const iconSize = 18;
+      const rightMargin = 92;
+      const textX = canvas.width - rightMargin;
+      const iconX = textX - textWidth - iconSize - 7;
+      const iconY = stampY - 9;
+
+      // Dibujo vectorial oficial del isotipo de GitHub
+      const githubOctocatPath = new Path2D(
+        "M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+      );
+
+      ctx.save();
+      ctx.translate(iconX, iconY);
+      ctx.scale(iconSize / 16, iconSize / 16);
+      ctx.fillStyle = stampColor;
+      ctx.fill(githubOctocatPath);
+      ctx.restore();
+
       ctx.textAlign = "right";
-      ctx.textBaseline = "middle";
-      ctx.fillText("Ayudantia: @Marton1123", canvas.width - 68, footerY);
+      ctx.fillStyle = stampColor;
+      ctx.fillText(userText, textX, stampY);
 
       const canvasBlob = await new Promise((resolve) =>
         canvas.toBlob(resolve, "image/png", 1.0)
@@ -350,6 +344,11 @@ export default function RewardCard({
     } finally {
       setIsSuctioning(false);
       setIsDownloading(false);
+      try {
+        audioService.playCardReturn();
+      } catch {
+        // Audio fallback
+      }
     }
   };
 
@@ -468,41 +467,40 @@ export default function RewardCard({
               {/* Solapa Triangular Superior 3D */}
               <div className={`wax-flap-3d ${isOpening ? "is-open" : ""}`} />
 
-              {/* Sello de Cera Realista 3D con soporte para logo personalizado */}
+              {/* Sello de Cera Realista 3D Autentico */}
               <div
                 className={`wax-seal-realistic ${isOpening ? "wax-seal-cracking" : ""}`}
                 onClick={handleOpenEnvelope}
               >
-                <div
-                  style={{
-                    width: "46px",
-                    height: "46px",
-                    borderRadius: "50%",
-                    border: "1.5px solid rgba(254, 202, 202, 0.45)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    boxShadow: "inset 0 1px 4px rgba(0, 0, 0, 0.6)",
-                    overflow: "hidden",
-                    padding: "4px",
-                  }}
-                >
-                  {!sealLogoError ? (
-                    <img
-                      src="/assets/seal_logo.svg"
-                      alt="Sello Oficial"
-                      onError={() => setSealLogoError(true)}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "contain",
-                        filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))",
-                      }}
-                    />
-                  ) : (
-                    <Award size={25} color="#FEF08A" />
-                  )}
-                </div>
+                {!sealLogoError ? (
+                  <img
+                    src="/assets/seal_logo.png"
+                    alt="Sello Oficial de Cera"
+                    onError={() => setSealLogoError(true)}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                      userSelect: "none",
+                      pointerEvents: "none",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: "60px",
+                      height: "60px",
+                      borderRadius: "50%",
+                      backgroundColor: "#991B1B",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: "inset 0 2px 4px rgba(255, 255, 255, 0.4)",
+                    }}
+                  >
+                    <Award size={30} color="#FEF08A" />
+                  </div>
+                )}
               </div>
 
               {/* Halo de luz dorado que emana naturalmente al abrirse el sobre (sin recuadros) */}
@@ -689,14 +687,16 @@ export default function RewardCard({
                   overflow: "hidden",
                   cursor: "pointer",
                   transformStyle: "preserve-3d",
-                  transform: `rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale3d(${isInteracting ? 1.05 : 1}, ${isInteracting ? 1.05 : 1}, ${isInteracting ? 1.05 : 1})`,
+                  transform: `rotateX(${rotate.x}deg) rotateY(${rotate.y}deg) scale3d(${isInteracting ? 1.04 : 1}, ${isInteracting ? 1.04 : 1}, ${isInteracting ? 1.04 : 1})`,
                   transition: isInteracting
-                    ? "transform 0.04s ease-out"
+                    ? "transform 140ms cubic-bezier(0.03, 0.98, 0.52, 0.99)"
                     : "transform 0.5s ease-out, box-shadow 0.5s ease",
                   boxShadow: isInteracting
-                    ? `${rotate.y * -2.5}px ${rotate.x * 2.5}px 40px rgba(0, 0, 0, 0.5), 0 25px 50px rgba(0, 0, 0, 0.4), 0 0 30px rgba(245, 158, 11, 0.35)`
+                    ? `${rotate.y * -2}px ${rotate.x * 2}px 36px rgba(0, 0, 0, 0.45), 0 25px 50px rgba(0, 0, 0, 0.4), 0 0 28px rgba(245, 158, 11, 0.3)`
                     : "0 20px 42px -8px rgba(0, 0, 0, 0.32)",
                   border: "2.5px solid rgba(251, 191, 36, 0.85)",
+                  willChange: "transform",
+                  backfaceVisibility: "hidden",
                 }}
               >
                 {/* Capa 1: La Ilustracion Completa de la Carta */}
