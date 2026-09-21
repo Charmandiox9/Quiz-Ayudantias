@@ -130,6 +130,7 @@ export default function HubScreen({
   const [uploadingImageIndex, setUploadingImageIndex] = useState(null);
   const [uploadingSubjectSeal, setUploadingSubjectSeal] = useState(false);
   const [uploadingCardImage, setUploadingCardImage] = useState(false);
+  const [subjectSealPreviewFailed, setSubjectSealPreviewFailed] = useState(false);
   const [editingSubjectId, setEditingSubjectId] = useState(null);
 
   const selectedSubject = useMemo(
@@ -176,6 +177,7 @@ export default function HubScreen({
 
   const openSubjectEditor = (subject = null) => {
     setFormError("");
+    setSubjectSealPreviewFailed(false);
     setEditingSubjectId(subject?.id || null);
     setSubjectForm(subject
       ? { name: subject.name, code: subject.code || "", description: subject.description || "", sealLogoUrl: subject.sealLogoUrl || "" }
@@ -187,6 +189,7 @@ export default function HubScreen({
     if (!file) return;
     setFormError("");
     setUploadingSubjectSeal(true);
+    setSubjectSealPreviewFailed(false);
     try {
       const sealLogoUrl = await uploadImageToR2(file, "subject-seal");
       setSubjectForm((current) => ({ ...current, sealLogoUrl }));
@@ -494,13 +497,19 @@ export default function HubScreen({
             </label>
             <fieldset style={{ border: "1px solid #CBD5E1", borderRadius: 12, padding: 14, display: "grid", gap: 10 }}>
               <legend style={{ padding: "0 7px", color: "#1E2761", fontWeight: 800 }}>Estampado de las tarjetas de logro</legend>
-              <p style={{ margin: 0, color: "#64748B", fontSize: 12, lineHeight: 1.5 }}>Se usará en las tarjetas de logro de todos los quizzes de esta asignatura. Sube una imagen con fondo transparente para mejores resultados.</p>
+              <p style={{ margin: 0, color: "#64748B", fontSize: 12, lineHeight: 1.5 }}>Se usará en las tarjetas de logro de todos los quizzes de esta asignatura. Sube una imagen con fondo transparente para mejores resultados. La URL pública del bucket debe ser un dominio r2.dev o personalizado, no el endpoint S3.</p>
               {subjectForm.sealLogoUrl && (
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                   <div style={{ width: 76, height: 76, display: "grid", placeItems: "center", borderRadius: "50%", background: "radial-gradient(circle at 30% 25%, #C83E36, #7F1D1D 72%)", border: "3px solid #FCD34D", boxShadow: "0 5px 14px #7F1D1D33" }}>
-                    <img src={subjectForm.sealLogoUrl} alt="Vista previa del estampado" style={{ width: 46, height: 46, objectFit: "contain" }} />
+                    <img
+                      src={subjectSealPreviewFailed ? "/assets/seal_logo.jpg" : subjectForm.sealLogoUrl}
+                      alt={subjectSealPreviewFailed ? "Sello predeterminado; el personalizado no se pudo cargar" : "Vista previa del estampado"}
+                      onError={() => setSubjectSealPreviewFailed(true)}
+                      style={{ width: 46, height: 46, objectFit: "contain" }}
+                    />
                   </div>
                   <Button type="button" size="sm" variant="outline" onClick={() => setSubjectForm((current) => ({ ...current, sealLogoUrl: "" }))}>Usar sello predeterminado</Button>
+                  {subjectSealPreviewFailed && <p role="alert" style={{ flexBasis: "100%", margin: 0, color: "#B91C1C", fontSize: 12 }}>No se pudo cargar desde R2. Configura R2_PUBLIC_BASE_URL con la URL pública del bucket (r2.dev o dominio personalizado), guarda la variable en Vercel, vuelve a desplegar y carga el sello otra vez.</p>}
                 </div>
               )}
               <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>{uploadingSubjectSeal ? "Subiendo estampado…" : subjectForm.sealLogoUrl ? "Reemplazar estampado" : "Subir estampado personalizado"}

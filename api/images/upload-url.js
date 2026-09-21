@@ -27,6 +27,19 @@ function getR2Client() {
   return r2Client;
 }
 
+function getPublicBaseUrl() {
+  try {
+    const publicUrl = new URL(process.env.R2_PUBLIC_BASE_URL || "");
+    if (
+      publicUrl.protocol !== "https:" ||
+      publicUrl.hostname.toLowerCase().endsWith(".r2.cloudflarestorage.com")
+    ) return null;
+    return publicUrl.toString().replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
+
 async function authorizeTeacher(req) {
   const authorization = req.headers.authorization || "";
   const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
@@ -69,14 +82,16 @@ export default async function handler(req, res) {
 
     const client = getR2Client();
     if (!client) return json(res, 503, { error: "Falta configurar Cloudflare R2 en las variables de entorno de Vercel." });
+    const publicBaseUrl = getPublicBaseUrl();
+    if (!publicBaseUrl) {
+      return json(res, 503, { error: "R2_PUBLIC_BASE_URL debe ser el dominio público del bucket (r2.dev o dominio personalizado), no el endpoint S3 *.r2.cloudflarestorage.com." });
+    }
 
     const bucket = process.env.R2_BUCKET_NAME;
     const assetFolder = assetType === "subject-seal" ? "subjects" : assetType === "quiz-card" ? "quiz-cards" : "questions";
     const objectKey = `${assetFolder}/${userId}/${randomUUID()}.webp`;
     const command = new PutObjectCommand({ Bucket: bucket, Key: objectKey, ContentType: IMAGE_CONTENT_TYPE });
     const uploadUrl = await getSignedUrl(client, command, { expiresIn: 60 });
-    const publicBaseUrl = process.env.R2_PUBLIC_BASE_URL.replace(/\/$/, "");
-
     return json(res, 200, {
       uploadUrl,
       imageUrl: `${publicBaseUrl}/${objectKey.split("/").map(encodeURIComponent).join("/")}`,
