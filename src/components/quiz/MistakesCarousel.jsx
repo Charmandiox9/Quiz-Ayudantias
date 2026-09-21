@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import Card from "../common/Card";
 import Badge from "../common/Badge";
 import Button from "../common/Button";
+import MarkdownContent from "../common/MarkdownContent";
 import {
   ChevronLeft,
   ChevronRight,
@@ -118,7 +119,9 @@ export default function MistakesCarousel({ mistakes = [], totalQuestions = 16 })
           </Badge>
         </div>
 
-        <h3
+        <div
+          role="heading"
+          aria-level={3}
           style={{
             fontSize: "clamp(16px, 3vw, 20px)",
             fontWeight: 800,
@@ -127,8 +130,8 @@ export default function MistakesCarousel({ mistakes = [], totalQuestions = 16 })
             lineHeight: 1.4,
           }}
         >
-          {q.q}
-        </h3>
+          <MarkdownContent>{q.q}</MarkdownContent>
+        </div>
 
         {q.image && <img src={q.image} alt="Imagen de apoyo de la pregunta" style={{ display: "block", maxWidth: "100%", maxHeight: 340, objectFit: "contain", margin: "0 auto 16px", borderRadius: 10, border: "1px solid var(--color-border)" }} />}
 
@@ -236,9 +239,9 @@ export default function MistakesCarousel({ mistakes = [], totalQuestions = 16 })
           >
             Fundamento teorico y explicacion:
           </span>
-          <p style={{ fontSize: "13.5px", color: "var(--color-text-main)", margin: 0, lineHeight: 1.5 }}>
+          <MarkdownContent>
             {q.exp}
-          </p>
+          </MarkdownContent>
         </div>
       </Card>
 

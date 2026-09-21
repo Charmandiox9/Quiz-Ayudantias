@@ -5,6 +5,7 @@ import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
 import Button from "../components/common/Button";
 import RewardCard from "../components/common/RewardCard";
+import MarkdownContent from "../components/common/MarkdownContent";
 import { getPlayerDeviceId, clearActiveSession } from "../utils/session";
 import { answerLabels, formatAnswerText, isAnswerCorrect, isMultipleSelect, isOrdering, isShortAnswer } from "../utils/answers";
 import { CheckCircle, Clock, Trophy, ArrowLeft, Wifi, AlertTriangle, XCircle, Award, Zap } from "lucide-react";
@@ -248,7 +249,7 @@ export default function PlayerScreen({ playerInfo, onExit }) {
               <span style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-secondary)" }}>
                 Pregunta {gameState.questionIndex + 1} de {gameState.totalQuestions}
               </span>
-              {gameState.prompt && <h2 style={{ fontSize: "clamp(20px, 5vw, 27px)", fontWeight: 800, color: "var(--color-text-main)", lineHeight: 1.35, margin: "12px 0 0" }}>{gameState.prompt}</h2>}
+              {gameState.prompt && <div role="heading" aria-level={2} style={{ fontSize: "clamp(20px, 5vw, 27px)", fontWeight: 800, color: "var(--color-text-main)", lineHeight: 1.35, margin: "12px 0 0" }}><MarkdownContent>{gameState.prompt}</MarkdownContent></div>}
             </div>
 
             {gameState.image && <img src={gameState.image} alt="Imagen de apoyo para la pregunta" style={{ display: "block", width: "100%", maxHeight: 360, objectFit: "contain", margin: "0 auto 16px", borderRadius: 12, border: "1px solid var(--color-border)" }} />}

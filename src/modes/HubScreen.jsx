@@ -13,6 +13,7 @@ import {
 import { AYUDANTIAS } from "../data";
 import Card from "../components/common/Card";
 import Button from "../components/common/Button";
+import MarkdownContent from "../components/common/MarkdownContent";
 import Badge from "../components/common/Badge";
 import PrivacyNotice from "../components/common/PrivacyNotice";
 import { sanitizeNickname, sanitizeRoomCode, generateAnonymousAlias } from "../utils/sanitizers";
@@ -130,13 +131,15 @@ export default function HubScreen({
   const [uploadingImageIndex, setUploadingImageIndex] = useState(null);
   const [uploadingSubjectSeal, setUploadingSubjectSeal] = useState(false);
   const [uploadingCardImage, setUploadingCardImage] = useState(false);
-  const [subjectSealPreviewFailed, setSubjectSealPreviewFailed] = useState(false);
+  const [failedSubjectSealUrl, setFailedSubjectSealUrl] = useState("");
   const [editingSubjectId, setEditingSubjectId] = useState(null);
 
   const selectedSubject = useMemo(
     () => catalog.subjects.find((subject) => subject.id === selectedSubjectId) || catalog.subjects[0],
     [catalog.subjects, selectedSubjectId]
   );
+  const isSubjectSealPreviewFailed = Boolean(subjectForm.sealLogoUrl && failedSubjectSealUrl === subjectForm.sealLogoUrl);
+  const subjectSealPreviewSrc = isSubjectSealPreviewFailed ? "/assets/seal_logo.jpg" : subjectForm.sealLogoUrl;
 
   const commitCatalog = async (nextCatalog) => {
     setPageError("");
@@ -177,7 +180,7 @@ export default function HubScreen({
 
   const openSubjectEditor = (subject = null) => {
     setFormError("");
-    setSubjectSealPreviewFailed(false);
+    setFailedSubjectSealUrl("");
     setEditingSubjectId(subject?.id || null);
     setSubjectForm(subject
       ? { name: subject.name, code: subject.code || "", description: subject.description || "", sealLogoUrl: subject.sealLogoUrl || "" }
@@ -189,7 +192,7 @@ export default function HubScreen({
     if (!file) return;
     setFormError("");
     setUploadingSubjectSeal(true);
-    setSubjectSealPreviewFailed(false);
+    setFailedSubjectSealUrl("");
     try {
       const sealLogoUrl = await uploadImageToR2(file, "subject-seal");
       setSubjectForm((current) => ({ ...current, sealLogoUrl }));
@@ -502,14 +505,19 @@ export default function HubScreen({
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                   <div style={{ width: 76, height: 76, display: "grid", placeItems: "center", borderRadius: "50%", background: "radial-gradient(circle at 30% 25%, #C83E36, #7F1D1D 72%)", border: "3px solid #FCD34D", boxShadow: "0 5px 14px #7F1D1D33" }}>
                     <img
-                      src={subjectSealPreviewFailed ? "/assets/seal_logo.jpg" : subjectForm.sealLogoUrl}
-                      alt={subjectSealPreviewFailed ? "Sello predeterminado; el personalizado no se pudo cargar" : "Vista previa del estampado"}
-                      onError={() => setSubjectSealPreviewFailed(true)}
+                      src={subjectSealPreviewSrc}
+                      alt={isSubjectSealPreviewFailed ? "Sello predeterminado; el personalizado no se pudo cargar" : "Vista previa del estampado"}
+                      onLoad={() => {
+                        if (!isSubjectSealPreviewFailed) setFailedSubjectSealUrl("");
+                      }}
+                      onError={() => {
+                        if (!isSubjectSealPreviewFailed) setFailedSubjectSealUrl(subjectForm.sealLogoUrl);
+                      }}
                       style={{ width: 46, height: 46, objectFit: "contain" }}
                     />
                   </div>
                   <Button type="button" size="sm" variant="outline" onClick={() => setSubjectForm((current) => ({ ...current, sealLogoUrl: "" }))}>Usar sello predeterminado</Button>
-                  {subjectSealPreviewFailed && <p role="alert" style={{ flexBasis: "100%", margin: 0, color: "#B91C1C", fontSize: 12 }}>No se pudo cargar desde R2. Configura R2_PUBLIC_BASE_URL con la URL pública del bucket (r2.dev o dominio personalizado), guarda la variable en Vercel, vuelve a desplegar y carga el sello otra vez.</p>}
+                  {isSubjectSealPreviewFailed && <p role="alert" style={{ flexBasis: "100%", margin: 0, color: "#B91C1C", fontSize: 12 }}>No se pudo cargar desde R2. Configura R2_PUBLIC_BASE_URL con la URL pública del bucket (r2.dev o dominio personalizado), guarda la variable en Vercel, vuelve a desplegar y carga el sello otra vez.</p>}
                 </div>
               )}
               <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>{uploadingSubjectSeal ? "Subiendo estampado…" : subjectForm.sealLogoUrl ? "Reemplazar estampado" : "Subir estampado personalizado"}
@@ -585,6 +593,10 @@ export default function HubScreen({
                 <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Enunciado *
                   <textarea required value={question.prompt} onChange={(event) => updateQuestion(questionIndex, "prompt", event.target.value)} rows={2} style={{ ...fieldStyle, marginTop: 5, resize: "vertical" }} />
                 </label>
+                {question.prompt.trim() && <details className="markdown-preview">
+                  <summary>Vista previa del enunciado</summary>
+                  <MarkdownContent>{question.prompt}</MarkdownContent>
+                </details>}
                 <div style={{ display: "grid", gap: 9 }}>
                   {question.imageUrl && (
                     <div style={{ position: "relative", width: "fit-content", maxWidth: "100%" }}>
@@ -644,6 +656,10 @@ export default function HubScreen({
                 <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Explicación (opcional)
                   <textarea value={question.explanation} onChange={(event) => updateQuestion(questionIndex, "explanation", event.target.value)} rows={2} style={{ ...fieldStyle, marginTop: 5, resize: "vertical" }} />
                 </label>
+                {question.explanation.trim() && <details className="markdown-preview">
+                  <summary>Vista previa de la explicación</summary>
+                  <MarkdownContent>{question.explanation}</MarkdownContent>
+                </details>}
                 {quizForm.questions.length > 1 && (
                   <button type="button" onClick={() => setQuizForm((current) => ({ ...current, questions: current.questions.filter((_, index) => index !== questionIndex) }))} style={{ justifySelf: "start", border: 0, background: "transparent", color: "#B91C1C", padding: 0, cursor: "pointer" }}>Eliminar pregunta</button>
                 )}
@@ -651,7 +667,7 @@ export default function HubScreen({
             ))}
 
             <Button type="button" variant="secondary" icon={Plus} onClick={() => setQuizForm((current) => ({ ...current, questions: [...current.questions, newQuestion()] }))}>Agregar pregunta</Button>
-            <p style={{ margin: 0, color: "#64748B", fontSize: 12 }}>Las respuestas cortas aceptan variantes y se corrigen ignorando tildes y mayúsculas. La selección múltiple requiere todas las correctas y ninguna incorrecta.</p>
+            <p style={{ margin: 0, color: "#64748B", fontSize: 12 }}>Las respuestas cortas aceptan variantes y se corrigen ignorando tildes y mayúsculas. La selección múltiple requiere todas las correctas y ninguna incorrecta. En enunciado y explicación puedes usar Markdown: **negrita**, *cursiva*, `código`, listas, citas y bloques de código; también se admiten tablas y tachado.</p>
             {formError && <p role="alert" style={{ color: "#B91C1C", margin: 0 }}>{formError}</p>}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 9 }}>
               <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>

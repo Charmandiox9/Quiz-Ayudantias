@@ -2,6 +2,7 @@ import React from 'react';
 import Card from '../common/Card';
 import Badge from '../common/Badge';
 import Button from '../common/Button';
+import MarkdownContent from '../common/MarkdownContent';
 import { BookOpen, AlertCircle, Check } from 'lucide-react';
 import { OPTION_LABELS, OPTION_COLORS } from '../../config/constants';
 import { formatAnswerText, getAnswerIndices, isAnswerCorrect, isMultipleSelect, isOrdering, isShortAnswer } from '../../utils/answers';
@@ -66,7 +67,9 @@ export default function QuestionCard({
         </span>
       </div>
 
-      <h2
+      <div
+        role="heading"
+        aria-level={2}
         style={{
           fontSize: 'clamp(19px, 3.8vw, 27px)',
           fontWeight: 800,
@@ -75,8 +78,8 @@ export default function QuestionCard({
           lineHeight: 1.35,
         }}
       >
-        {question.q}
-      </h2>
+        <MarkdownContent>{question.q}</MarkdownContent>
+      </div>
 
       {question.image && (
         <img
@@ -292,16 +295,9 @@ export default function QuestionCard({
             <AlertCircle size={20} />
             <span>Fundamento Tecnico</span>
           </div>
-          <p
-            style={{
-              fontSize: 'clamp(14.5px, 2.4vw, 17px)',
-              color: '#166534',
-              lineHeight: 1.55,
-              fontWeight: 500,
-            }}
-          >
+          <MarkdownContent className="quiz-markdown-explanation">
             {question.exp}
-          </p>
+          </MarkdownContent>
         </div>
       )}
     </Card>
