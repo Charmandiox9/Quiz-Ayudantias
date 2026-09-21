@@ -13,7 +13,7 @@ import {
   updateQuiz,
 } from "../data/quizCatalog";
 import { AYUDANTIAS } from "../data";
-import { MAX_ANSWER_OPTIONS, OPTION_LABELS } from "../config/constants";
+import { MAX_ANSWER_OPTIONS, MAX_QUESTION_TIME_SECONDS, MIN_QUESTION_TIME_SECONDS, OPTION_LABELS } from "../config/constants";
 import Card from "../components/common/Card";
 import Button from "../components/common/Button";
 import MarkdownContent from "../components/common/MarkdownContent";
@@ -46,6 +46,7 @@ const newQuestion = () => ({
   correctOption: "0",
   correctOptions: ["0"],
   acceptedAnswers: "",
+  timeLimitSeconds: "",
   imageUrl: "",
   explanation: "",
 });
@@ -66,6 +67,7 @@ function quizToForm(quiz) {
       correctOption: String(question.ans ?? "0"),
       correctOptions: Array.isArray(question.ans) ? question.ans.map(String) : ["0"],
       acceptedAnswers: Array.isArray(question.ans) ? question.ans.join("\n") : "",
+      timeLimitSeconds: Number.isInteger(question.timeLimitSeconds) ? String(question.timeLimitSeconds) : "",
       imageUrl: question.image || "",
       explanation: question.exp || "",
     })),
@@ -729,6 +731,23 @@ export default function HubScreen({
                 </div>
                 <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Tema
                   <input value={question.topic} onChange={(event) => updateQuestion(questionIndex, "topic", event.target.value)} style={{ ...fieldStyle, marginTop: 5 }} />
+                </label>
+                <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Tiempo límite (segundos)
+                  <input
+                    type="number"
+                    min={MIN_QUESTION_TIME_SECONDS}
+                    max={MAX_QUESTION_TIME_SECONDS}
+                    step="1"
+                    inputMode="numeric"
+                    value={question.timeLimitSeconds}
+                    onChange={(event) => updateQuestion(questionIndex, "timeLimitSeconds", event.target.value)}
+                    placeholder="60"
+                    style={{ ...fieldStyle, marginTop: 5 }}
+                    aria-label={`Tiempo límite para la pregunta ${questionIndex + 1} en segundos`}
+                  />
+                  <span style={{ display: "block", marginTop: 5, color: "#64748B", fontSize: 12 }}>
+                    Deja vacío para usar 60 segundos. Puedes definir entre {MIN_QUESTION_TIME_SECONDS} y {MAX_QUESTION_TIME_SECONDS} segundos.
+                  </span>
                 </label>
                 {question.type === "short_answer" ? (
                   <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Respuestas aceptadas * (una por línea)

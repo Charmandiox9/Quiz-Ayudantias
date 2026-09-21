@@ -18,6 +18,8 @@ export const GAME_PHASES = {
 };
 
 export const MAX_ANSWER_OPTIONS = 8;
+export const MIN_QUESTION_TIME_SECONDS = 5;
+export const MAX_QUESTION_TIME_SECONDS = 600;
 export const OPTION_LABELS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
 export const OPTION_COLORS = {

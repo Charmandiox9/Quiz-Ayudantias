@@ -1,4 +1,6 @@
 import { AYUDANTIAS } from "./index";
+import { MAX_QUESTION_TIME_SECONDS, MIN_QUESTION_TIME_SECONDS } from "../config/constants";
+import { isValidQuestionTimeLimitSeconds } from "../utils/quizTime";
 
 const STORAGE_KEY = "quiz-ayudantias-catalog-v1";
 const DEFAULT_SUBJECT_ID = "subject-ingenieria-software";
@@ -76,6 +78,9 @@ export function createQuiz({ subjectId, title, description = "", cardTitle = "",
     prompt: question.prompt.trim(),
     options: (question.options || []).map((option) => option.trim()),
     correctOptions: (question.correctOptions || []).map(Number),
+    timeLimitSeconds: question.timeLimitSeconds === "" || question.timeLimitSeconds == null
+      ? null
+      : Number(question.timeLimitSeconds),
     acceptedAnswers: (Array.isArray(question.acceptedAnswers)
       ? question.acceptedAnswers
       : String(question.acceptedAnswers || "").split(/\r?\n/)
@@ -84,6 +89,7 @@ export function createQuiz({ subjectId, title, description = "", cardTitle = "",
 
   const invalidQuestion = cleanQuestions.find((question) => {
     if (!question.prompt) return true;
+    if (!isValidQuestionTimeLimitSeconds(question.timeLimitSeconds)) return true;
     if (question.type === "short_answer") return question.acceptedAnswers.length === 0;
     if (question.type === "ordering") {
       return question.options.length < 2 || question.options.some((option) => !option);
@@ -104,6 +110,9 @@ export function createQuiz({ subjectId, title, description = "", cardTitle = "",
   }
   if (invalidQuestion) {
     if (!invalidQuestion.prompt) throw new Error("Escribe el enunciado de cada pregunta.");
+    if (!isValidQuestionTimeLimitSeconds(invalidQuestion.timeLimitSeconds)) {
+      throw new Error(`El tiempo límite debe ser un número entero entre ${MIN_QUESTION_TIME_SECONDS} y ${MAX_QUESTION_TIME_SECONDS} segundos.`);
+    }
     if (invalidQuestion.type === "short_answer") {
       throw new Error("Agrega al menos una respuesta aceptada en cada pregunta corta.");
     }
@@ -144,6 +153,7 @@ export function createQuiz({ subjectId, title, description = "", cardTitle = "",
       id: crypto.randomUUID(),
       type: question.type || "single_choice",
       topic: question.topic?.trim() || "General",
+      timeLimitSeconds: question.timeLimitSeconds,
       q: question.prompt,
       opts: question.options,
       image: question.imageUrl || question.image || question.imageData || "",

@@ -12,6 +12,7 @@ import Leaderboard from "../components/quiz/Leaderboard";
 import TimerRing from "../components/quiz/TimerRing";
 import { answerLabels, formatAnswerText, isAnswerCorrect, isOrdering, isShortAnswer, responseToOptionIndices, shuffleIndices } from "../utils/answers";
 import { getAppUrl } from "../utils/appUrl";
+import { getQuestionTimeLimitSeconds } from "../utils/quizTime";
 import {
   ArrowLeft,
   ArrowRight,
@@ -54,7 +55,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
   const [players, setPlayers] = useState([]);
   const [votes, setVotes] = useState({});
   const [responseCount, setResponseCount] = useState(0);
-  const [remainingSeconds, setRemainingSeconds] = useState(ayudantia.defaultTimerSeconds || 60);
+  const [remainingSeconds, setRemainingSeconds] = useState(getQuestionTimeLimitSeconds(ayudantia.questions[0], ayudantia.defaultTimerSeconds || 60));
   const [showQrModal, setShowQrModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
@@ -225,7 +226,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
         if (isCorrect) {
           const now = Date.now();
           const elapsedMs = Math.max(0, now - questionStartTimeRef.current);
-          const totalMs = (ayudantia.defaultTimerSeconds || 60) * 1000;
+          const totalMs = getQuestionTimeLimitSeconds(currentQ, ayudantia.defaultTimerSeconds || 60) * 1000;
           const remainingFraction = Math.max(0, Math.min(1, 1 - (elapsedMs / totalMs)));
           // Formula dinamica: 500 base + 500 proporcional al tiempo restante
           pointsEarned = Math.round(500 + 500 * remainingFraction);
@@ -271,14 +272,14 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
     setCurrentQuestionIndex(0);
     setVotes({});
     setResponseCount(0);
-    setRemainingSeconds(ayudantia.defaultTimerSeconds || 60);
+    setRemainingSeconds(getQuestionTimeLimitSeconds(currentQuestion, ayudantia.defaultTimerSeconds || 60));
     setPhase(GAME_PHASES.QUESTION);
     questionStartTimeRef.current = Date.now();
     audioService.startQuestionMusic();
 
     if (serviceRef.current) {
       serviceRef.current.broadcastNext({
-        timerSeconds: ayudantia.defaultTimerSeconds || 60,
+        timerSeconds: getQuestionTimeLimitSeconds(currentQuestion, ayudantia.defaultTimerSeconds || 60),
         ...createLiveQuestionPayload(currentQuestion, 0, ayudantia.questions.length, optionOrder),
       });
     }
@@ -339,14 +340,14 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
     setCurrentQuestionIndex(nextIndex);
     setVotes({});
     setResponseCount(0);
-    setRemainingSeconds(ayudantia.defaultTimerSeconds || 60);
+    setRemainingSeconds(getQuestionTimeLimitSeconds(nextQuestion, ayudantia.defaultTimerSeconds || 60));
     setPhase(GAME_PHASES.QUESTION);
     questionStartTimeRef.current = Date.now();
     audioService.startQuestionMusic();
 
     if (serviceRef.current) {
       serviceRef.current.broadcastNext({
-        timerSeconds: ayudantia.defaultTimerSeconds || 60,
+        timerSeconds: getQuestionTimeLimitSeconds(nextQuestion, ayudantia.defaultTimerSeconds || 60),
         ...createLiveQuestionPayload(nextQuestion, nextIndex, ayudantia.questions.length, optionOrder),
       });
     }
@@ -590,7 +591,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
               </Badge>
               <TimerRing
                 remainingSeconds={remainingSeconds}
-                totalSeconds={ayudantia.defaultTimerSeconds || 60}
+                totalSeconds={getQuestionTimeLimitSeconds(currentQuestion, ayudantia.defaultTimerSeconds || 60)}
                 size={96}
                 strokeWidth={7}
               />
