@@ -1,10 +1,14 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import HubScreen from "./modes/HubScreen";
 import HostScreen from "./modes/HostScreen";
 import PlayerScreen from "./modes/PlayerScreen";
 import SoloScreen from "./modes/SoloScreen";
 import FastJoinScreen from "./modes/FastJoinScreen";
+import TeacherAccessScreen from "./modes/TeacherAccessScreen";
 import { AYUDANTIAS, getAyudantiaById, getAyudantiaByCode } from "./data";
+import { loadQuizCatalog, saveQuizCatalog } from "./data/quizCatalog";
+import { isSupabaseConfigured, supabase } from "./services/supabaseClient";
+import { hasTeacherAccess, loadTeacherCatalog, saveTeacherCatalog } from "./services/teacherCatalogService";
 import {
   saveActiveSession,
   getActiveSession,
@@ -43,36 +47,135 @@ function getInitialState() {
   return { view: "hub", session: null };
 }
 
+function freezeQuizSnapshot(quiz) {
+  const snapshot = JSON.parse(JSON.stringify(quiz));
+  const freezeDeep = (value) => {
+    if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
+    Object.values(value).forEach(freezeDeep);
+    return Object.freeze(value);
+  };
+  return freezeDeep(snapshot);
+}
+
 export default function App() {
   const [initial] = useState(getInitialState);
   const [currentView, setCurrentView] = useState(initial.view);
   const [sessionData, setSessionData] = useState(initial.session);
   const [initialRoomCode] = useState(getInitialRoomCode);
   const [showFullHub, setShowFullHub] = useState(false);
+  const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
+  const [teacherUser, setTeacherUser] = useState(null);
+  const [teacherAllowed, setTeacherAllowed] = useState(false);
+  const [catalog, setCatalog] = useState(null);
+  const [catalogError, setCatalogError] = useState("");
+  const [accessNotice, setAccessNotice] = useState("");
+  const [sendingLink, setSendingLink] = useState(false);
+  const [catalogReloadKey, setCatalogReloadKey] = useState(0);
+  const teacherUserIdRef = useRef(null);
+
+  useEffect(() => {
+    if (!supabase) return undefined;
+    let active = true;
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) return;
+      if (error) setCatalogError(error.message);
+      const initialUser = data?.session?.user || null;
+      teacherUserIdRef.current = initialUser?.id || null;
+      setTeacherUser(initialUser);
+      setAuthReady(true);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      const nextUser = session?.user || null;
+      if (teacherUserIdRef.current !== (nextUser?.id || null)) {
+        teacherUserIdRef.current = nextUser?.id || null;
+        setTeacherAllowed(false);
+        setCatalog(null);
+        setTeacherUser(nextUser);
+      }
+      setAuthReady(true);
+    });
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !teacherUser || currentView !== "hub") return undefined;
+    let active = true;
+    setCatalog(null);
+    setCatalogError("");
+    hasTeacherAccess(teacherUser.id)
+      .then(async (allowed) => {
+        if (!active) return;
+        setTeacherAllowed(allowed);
+        if (!allowed) {
+          await supabase.auth.signOut();
+          setAccessNotice("La cuenta no está habilitada para el espacio docente. Puedes unirte a una sala abajo.");
+          return;
+        }
+        let remoteCatalog = await loadTeacherCatalog(teacherUser.id);
+        if (remoteCatalog.subjects.length === 0) {
+          const localCatalog = loadQuizCatalog();
+          if (localCatalog.subjects.length) {
+            await saveTeacherCatalog(localCatalog, teacherUser.id);
+            remoteCatalog = await loadTeacherCatalog(teacherUser.id);
+          }
+        }
+        if (active) setCatalog(remoteCatalog);
+      })
+      .catch((error) => {
+        if (active) setCatalogError(`No se pudo cargar el catálogo: ${error.message}`);
+      });
+    return () => { active = false; };
+  }, [teacherUser, currentView, catalogReloadKey]);
 
   const handleStartHost = ({ ayudantia, roomCode }) => {
-    setSessionData({ ayudantia, roomCode });
+    const quizSnapshot = freezeQuizSnapshot(ayudantia);
+    setSessionData({ ayudantia: quizSnapshot, roomCode, quizVersion: quizSnapshot.version || 1 });
     setCurrentView("host");
   };
 
   const handleJoinPlayer = ({ name, roomCode, ayudantia }) => {
+    const resolvedAyudantia = ayudantia || getAyudantiaByCode(roomCode) || AYUDANTIAS[0];
     const playerId = getPlayerDeviceId();
-    const session = { name, roomCode, ayudantia, playerId };
+    const session = { name, roomCode, ayudantia: resolvedAyudantia, playerId };
 
     saveActiveSession({
       name,
       roomCode,
       playerId,
       role: "player",
-      ayudantiaId: ayudantia.id,
+      ayudantiaId: resolvedAyudantia.id,
     });
 
     setSessionData(session);
     setCurrentView("player");
   };
 
+  const sendTeacherLink = async (email) => {
+    if (!supabase) throw new Error("Supabase no está configurado.");
+    setSendingLink(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.origin, shouldCreateUser: false },
+      });
+      if (error) throw error;
+    } finally {
+      setSendingLink(false);
+    }
+  };
+
+  const handleSaveCatalog = async (nextCatalog) => {
+    if (!teacherUser) throw new Error("La sesión docente expiró. Vuelve a entrar.");
+    await saveTeacherCatalog(nextCatalog, teacherUser.id);
+    setCatalog(nextCatalog);
+  };
+
   const handleStartSolo = ({ ayudantia }) => {
-    setSessionData({ ayudantia });
+    const quizSnapshot = freezeQuizSnapshot(ayudantia);
+    setSessionData({ ayudantia: quizSnapshot, quizVersion: quizSnapshot.version || 1 });
     setCurrentView("solo");
   };
 
@@ -95,13 +198,42 @@ export default function App() {
         />
       )}
 
-      {!isFastJoinTarget && currentView === "hub" && (
+      {!isFastJoinTarget && currentView === "hub" && isSupabaseConfigured && !authReady && (
+        <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#F8FAFC", color: "#64748B" }}>Comprobando acceso…</main>
+      )}
+
+      {!isFastJoinTarget && currentView === "hub" && isSupabaseConfigured && authReady && (!teacherUser || !teacherAllowed) && (
+        <TeacherAccessScreen
+          onSendLink={sendTeacherLink}
+          onJoinPlayer={handleJoinPlayer}
+          busy={sendingLink}
+          notice={accessNotice}
+          errorNotice={catalogError}
+        />
+      )}
+
+      {!isFastJoinTarget && currentView === "hub" && (!isSupabaseConfigured || (teacherUser && teacherAllowed)) && (
+        (isSupabaseConfigured && !catalog) ? (
+          <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#F8FAFC", color: "#64748B" }}>
+            {catalogError ? (
+              <div style={{ display: "grid", gap: 12, justifyItems: "center" }}>
+                <p role="alert" style={{ color: "#B91C1C" }}>{catalogError}</p>
+                <button type="button" onClick={() => setCatalogReloadKey((key) => key + 1)} style={{ padding: "10px 16px", borderRadius: 8, border: "1px solid #CBD5E1", cursor: "pointer" }}>Reintentar</button>
+              </div>
+            ) : "Cargando asignaturas…"}
+          </main>
+        ) : (
         <HubScreen
           onStartHost={handleStartHost}
           onJoinPlayer={handleJoinPlayer}
           onStartSolo={handleStartSolo}
           initialRoomCode={initialRoomCode}
+          catalog={isSupabaseConfigured ? catalog : undefined}
+          onCatalogChange={isSupabaseConfigured ? handleSaveCatalog : undefined}
+          teacherEmail={teacherUser?.email || ""}
+          onSignOut={isSupabaseConfigured ? () => supabase.auth.signOut() : undefined}
         />
+        )
       )}
 
       {currentView === "host" && sessionData && (

@@ -9,6 +9,7 @@ import { Smartphone, Shuffle, ArrowRight, ShieldCheck, HelpCircle } from "lucide
 export default function FastJoinScreen({ roomCode, onJoin, onGoToHub }) {
   const cleanCode = sanitizeRoomCode(roomCode);
   const matchingAyudantia = getAyudantiaByCode(cleanCode);
+  const hasKnownQuiz = matchingAyudantia.code === cleanCode || matchingAyudantia.altCodes?.includes(cleanCode);
 
   const [nickname, setNickname] = useState(generateAnonymousAlias);
   const [validationError, setValidationError] = useState("");
@@ -50,10 +51,10 @@ export default function FastJoinScreen({ roomCode, onJoin, onGoToHub }) {
       <div style={{ maxWidth: "440px", width: "100%" }}>
         <div style={{ textAlign: "center", marginBottom: "20px" }}>
           <Badge variant="navy" style={{ marginBottom: "8px" }}>
-            Ingenieria de Software 2026-02
+            {hasKnownQuiz ? "Ingeniería de Software 2026-02" : "Quiz en vivo"}
           </Badge>
           <h1 style={{ fontSize: "24px", fontWeight: 900, color: "#1E2761", margin: 0 }}>
-            {matchingAyudantia.title}
+            {hasKnownQuiz ? matchingAyudantia.title : "Quiz de la sala"}
           </h1>
           <p style={{ fontSize: "14px", color: "#64748B", marginTop: "4px" }}>
             Unirse a la actividad interactiva en tiempo real

@@ -9,6 +9,7 @@ import {
   XCircle,
   CheckCircle2,
 } from "lucide-react";
+import { answerLabels, getAnswerIndices } from "../../utils/answers";
 
 export default function MistakesCarousel({ mistakes = [], totalQuestions = 16 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -22,7 +23,10 @@ export default function MistakesCarousel({ mistakes = [], totalQuestions = 16 })
   const q = currentItem.question;
   const userOptIndex = currentItem.selectedOption;
   const correctOptIndex = currentItem.correctOption;
-  const optionLabels = ["A", "B", "C", "D"];
+  const selectedLabels = answerLabels(userOptIndex);
+  const correctLabels = answerLabels(correctOptIndex);
+  const selectedText = getAnswerIndices(userOptIndex).map((index) => q.opts[index]).filter(Boolean).join(", ");
+  const correctText = getAnswerIndices(correctOptIndex).map((index) => q.opts[index]).filter(Boolean).join(", ");
 
   const handlePrev = () => {
     if (safeIndex > 0) {
@@ -170,11 +174,11 @@ export default function MistakesCarousel({ mistakes = [], totalQuestions = 16 })
             >
               <XCircle size={16} color="var(--color-danger)" />
               <span style={{ fontSize: "12.5px", fontWeight: 800, color: "#991B1B" }}>
-                Tu respuesta ({optionLabels[userOptIndex]}):
+                Tu respuesta ({selectedLabels.join(", ") || "sin respuesta"}):
               </span>
             </div>
             <p style={{ fontSize: "13.5px", color: "#7F1D1D", margin: 0, lineHeight: 1.45 }}>
-              {q.opts[userOptIndex]}
+              {selectedText || "No se registró una respuesta."}
             </p>
           </div>
 
@@ -197,11 +201,11 @@ export default function MistakesCarousel({ mistakes = [], totalQuestions = 16 })
             >
               <CheckCircle2 size={16} color="var(--color-success)" />
               <span style={{ fontSize: "12.5px", fontWeight: 800, color: "#166534" }}>
-                Respuesta correcta ({optionLabels[correctOptIndex]}):
+                Respuesta correcta ({correctLabels.join(", ")}):
               </span>
             </div>
             <p style={{ fontSize: "13.5px", color: "#14532D", margin: 0, lineHeight: 1.45 }}>
-              {q.opts[correctOptIndex]}
+              {correctText}
             </p>
           </div>
         </div>

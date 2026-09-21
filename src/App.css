@@ -56,6 +56,29 @@
   }
 }
 
+.teacher-library-layout {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.72fr) minmax(0, 1.8fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.teacher-library-layout > * {
+  min-width: 0;
+}
+
+dialog::backdrop {
+  background: rgb(15 23 42 / 55%);
+  backdrop-filter: blur(2px);
+}
+
+@media (max-width: 760px) {
+  .teacher-library-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+}
+
 #center {
   display: flex;
   flex-direction: column;

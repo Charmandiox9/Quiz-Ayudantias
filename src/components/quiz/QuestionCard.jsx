@@ -1,8 +1,10 @@
 import React from 'react';
 import Card from '../common/Card';
 import Badge from '../common/Badge';
-import { BookOpen, AlertCircle } from 'lucide-react';
+import Button from '../common/Button';
+import { BookOpen, AlertCircle, Check } from 'lucide-react';
 import { OPTION_LABELS, OPTION_COLORS } from '../../config/constants';
+import { getAnswerIndices, isMultipleSelect } from '../../utils/answers';
 
 export default function QuestionCard({
   question,
@@ -10,10 +12,18 @@ export default function QuestionCard({
   totalQuestions = 1,
   selectedAnswerIndex = null,
   onSelectAnswer = null,
+  onSubmitAnswer = null,
   isRevealed = false,
   showExplanation = false,
 }) {
   if (!question) return null;
+  const selectedIndices = Array.isArray(selectedAnswerIndex)
+    ? selectedAnswerIndex
+    : selectedAnswerIndex === null || selectedAnswerIndex === undefined
+      ? []
+      : [selectedAnswerIndex];
+  const correctIndices = getAnswerIndices(question.ans);
+  const multipleSelect = isMultipleSelect(question);
 
   return (
     <Card
@@ -55,12 +65,18 @@ export default function QuestionCard({
           fontSize: 'clamp(19px, 3.8vw, 27px)',
           fontWeight: 800,
           color: 'var(--color-text-main)',
-          marginBottom: '20px',
+          marginBottom: multipleSelect ? '14px' : '20px',
           lineHeight: 1.35,
         }}
       >
         {question.q}
       </h2>
+
+      {multipleSelect && (
+        <p style={{ margin: '0 0 14px', color: 'var(--color-text-secondary)', fontSize: '14px', fontWeight: 600 }}>
+          Selecciona todas las alternativas correctas.
+        </p>
+      )}
 
       {question.diagramSnippet && (
         <div
@@ -83,10 +99,10 @@ export default function QuestionCard({
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
-        {question.opts.map((optionText, idx) => {
+        {(question.opts || []).map((optionText, idx) => {
           const label = OPTION_LABELS[idx] || String(idx + 1);
-          const isSelected = selectedAnswerIndex === idx;
-          const isCorrect = isRevealed && idx === question.ans;
+          const isSelected = selectedIndices.includes(idx);
+          const isCorrect = isRevealed && correctIndices.includes(idx);
           const isWrongSelection = isRevealed && isSelected && !isCorrect;
 
           let btnBg = 'var(--color-surface)';
@@ -167,6 +183,19 @@ export default function QuestionCard({
           );
         })}
       </div>
+
+      {multipleSelect && onSubmitAnswer && !isRevealed && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+          <Button
+            variant="primary"
+            icon={Check}
+            onClick={onSubmitAnswer}
+            disabled={selectedIndices.length === 0}
+          >
+            Confirmar respuesta
+          </Button>
+        </div>
+      )}
 
       {showExplanation && question.exp && (
         <div

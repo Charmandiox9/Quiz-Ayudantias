@@ -10,6 +10,11 @@ export default function VoteBars({
   optionsCount = 4,
 }) {
   const labels = OPTION_LABELS.slice(0, optionsCount);
+  const correctIndices = Array.isArray(correctAnswerIndex)
+    ? correctAnswerIndex
+    : correctAnswerIndex === null || correctAnswerIndex === undefined
+      ? []
+      : [correctAnswerIndex];
 
   return (
     <div
@@ -27,7 +32,7 @@ export default function VoteBars({
       {labels.map((label, index) => {
         const count = votes[label] || 0;
         const percentage = totalVotes > 0 ? (count / totalVotes) * 100 : 0;
-        const isCorrect = isRevealed && index === correctAnswerIndex;
+        const isCorrect = isRevealed && correctIndices.includes(index);
         const baseColor = OPTION_COLORS[label] || '#475569';
         const displayColor = isCorrect ? 'var(--color-success)' : baseColor;
 

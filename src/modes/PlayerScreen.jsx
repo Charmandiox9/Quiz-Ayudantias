@@ -5,6 +5,7 @@ import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
 import Button from "../components/common/Button";
 import { getPlayerDeviceId, clearActiveSession } from "../utils/session";
+import { answerLabels, isAnswerCorrect, isMultipleSelect } from "../utils/answers";
 import { CheckCircle, Clock, Trophy, ArrowLeft, Wifi, AlertTriangle, XCircle, Award, Zap } from "lucide-react";
 
 export default function PlayerScreen({ playerInfo, onExit }) {
@@ -13,6 +14,8 @@ export default function PlayerScreen({ playerInfo, onExit }) {
     questionIndex: 0,
     totalQuestions: 1,
     correctAnswerIndex: null,
+    answerType: "single_choice",
+    optionTexts: [],
     players: [],
   });
   const [selectedOption, setSelectedOption] = useState(null);
@@ -62,6 +65,8 @@ export default function PlayerScreen({ playerInfo, onExit }) {
           questionIndex: data.questionIndex,
           totalQuestions: data.totalQuestions,
           correctAnswerIndex: null,
+          answerType: data.answerType || "single_choice",
+          optionTexts: data.optionTexts || [],
         }));
         setSelectedOption(null);
         setHasVoted(false);
@@ -81,18 +86,38 @@ export default function PlayerScreen({ playerInfo, onExit }) {
     };
   }, [playerInfo.roomCode, playerInfo.name, playerId]);
 
-  const handleVote = (label) => {
+  const sendVote = (answer) => {
     if (hasVoted || gameState.phase !== GAME_PHASES.QUESTION) return;
-    setSelectedOption(label);
     setHasVoted(true);
 
     if (serviceRef.current) {
       serviceRef.current.broadcastVote({
         playerId,
         playerName: playerInfo.name,
-        optionLabel: label,
+        answer,
+        optionLabel: Number.isInteger(answer) ? OPTION_LABELS[answer] : undefined,
       });
     }
+  };
+
+  const handleVote = (optionIndex) => {
+    if (hasVoted || gameState.phase !== GAME_PHASES.QUESTION) return;
+    if (isMultipleSelect({ type: gameState.answerType })) {
+      setSelectedOption((previous) => {
+        const selected = Array.isArray(previous) ? previous : [];
+        return selected.includes(optionIndex)
+          ? selected.filter((index) => index !== optionIndex)
+          : [...selected, optionIndex].sort((a, b) => a - b);
+      });
+      return;
+    }
+    setSelectedOption(optionIndex);
+    sendVote(optionIndex);
+  };
+
+  const handleSubmitMultiSelect = () => {
+    if (!Array.isArray(selectedOption) || selectedOption.length === 0) return;
+    sendVote(selectedOption);
   };
 
   const handleExit = () => {
@@ -102,9 +127,16 @@ export default function PlayerScreen({ playerInfo, onExit }) {
 
   const correctLetter =
     gameState.correctAnswerIndex !== null && gameState.correctAnswerIndex !== undefined
-      ? OPTION_LABELS[gameState.correctAnswerIndex]
+      ? answerLabels(gameState.correctAnswerIndex).join(", ")
       : null;
-  const isCorrect = selectedOption && correctLetter && selectedOption === correctLetter;
+  const isCorrect = hasVoted && isAnswerCorrect(
+    { type: gameState.answerType, ans: gameState.correctAnswerIndex },
+    selectedOption
+  );
+  const selectedLabels = answerLabels(selectedOption).join(", ");
+  const answerOptions = gameState.optionTexts?.length
+    ? gameState.optionTexts
+    : OPTION_LABELS.slice(0, 4);
 
   // Calculo de ranking personal
   const sortedPlayers = [...(gameState.players || [])].sort((a, b) => (b.score || 0) - (a.score || 0));
@@ -174,23 +206,28 @@ export default function PlayerScreen({ playerInfo, onExit }) {
                 Pregunta {gameState.questionIndex + 1} de {gameState.totalQuestions}
               </span>
               <h3 style={{ fontSize: "20px", fontWeight: 800, color: "var(--color-text-main)", marginTop: "4px" }}>
-                Elige tu respuesta en la pantalla:
+                {gameState.answerType === "multiple_select"
+                  ? "Selecciona todas las alternativas que correspondan:"
+                  : "Elige tu respuesta en la pantalla:"}
               </h3>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "14px" }}>
-              {["A", "B", "C", "D"].map((label) => {
+              {answerOptions.map((optionText, optionIndex) => {
+                const label = OPTION_LABELS[optionIndex] || String(optionIndex + 1);
                 const color = OPTION_COLORS[label] || "#475569";
-                const isSelected = selectedOption === label;
+                const isSelected = Array.isArray(selectedOption)
+                  ? selectedOption.includes(optionIndex)
+                  : selectedOption === optionIndex;
 
                 return (
                   <button
                     key={label}
                     type="button"
-                    onClick={() => handleVote(label)}
+                    onClick={() => handleVote(optionIndex)}
                     disabled={hasVoted}
                     style={{
-                      height: "clamp(95px, 20vh, 135px)",
+                      minHeight: "clamp(95px, 20vh, 135px)",
                       borderRadius: "16px",
                       backgroundColor: color,
                       color: "#FFFFFF",
@@ -204,21 +241,37 @@ export default function PlayerScreen({ playerInfo, onExit }) {
                       cursor: hasVoted ? "default" : "pointer",
                       opacity: hasVoted && !isSelected ? 0.4 : 1,
                       transform: isSelected ? "scale(1.03)" : "none",
-                      transition: "all 0.2s ease",
+                      transition: "transform 0.2s ease, opacity 0.2s ease, border-color 0.2s ease",
                       boxShadow: "0 6px 12px -2px rgb(0 0 0 / 0.15)",
+                      flexDirection: "column",
+                      gap: 5,
+                      padding: "12px 8px",
                     }}
                   >
                     {label}
+                    {answerOptions.length <= 2 && <span style={{ font: "600 14px var(--font-sans)" }}>{optionText}</span>}
                   </button>
                 );
               })}
             </div>
 
+            {gameState.answerType === "multiple_select" && (
+              <Button
+                variant="primary"
+                fullWidth
+                disabled={!Array.isArray(selectedOption) || selectedOption.length === 0 || hasVoted}
+                onClick={handleSubmitMultiSelect}
+                style={{ marginTop: 14 }}
+              >
+                Confirmar selección
+              </Button>
+            )}
+
             {hasVoted && (
               <div style={{ textAlign: "center", marginTop: "24px", padding: "16px", backgroundColor: "var(--color-success-bg)", borderRadius: "12px", border: "2px solid #BBF7D0" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", color: "#15803D", fontWeight: 800, fontSize: "17px" }}>
                   <CheckCircle size={20} />
-                  <span>Voto registrado: Opcion {selectedOption}</span>
+                  <span>Respuesta registrada: {selectedLabels}</span>
                 </div>
                 <p style={{ fontSize: "14px", color: "#166534", marginTop: "4px", fontWeight: 500 }}>
                   Respuesta enviada. Esperando el cierre del tiempo en el proyector...
@@ -246,7 +299,7 @@ export default function PlayerScreen({ playerInfo, onExit }) {
         {/* 4. Pantalla de Revelacion con Puntaje en Tiempo Real */}
         {gameState.phase === GAME_PHASES.REVEAL && (
           <Card style={{ textAlign: "center", padding: "36px 20px" }}>
-            {selectedOption ? (
+            {hasVoted ? (
               isCorrect ? (
                 <div>
                   <div style={{ width: "64px", height: "64px", borderRadius: "16px", backgroundColor: "var(--color-success-bg)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
@@ -282,7 +335,7 @@ export default function PlayerScreen({ playerInfo, onExit }) {
                     Respuesta Incorrecta
                   </h3>
                   <p style={{ fontSize: "16px", color: "var(--color-text-secondary)", marginBottom: "10px" }}>
-                    Votaste la opcion <strong>{selectedOption}</strong>. La correcta era la <strong>{correctLetter}</strong>.
+                    Elegiste <strong>{selectedLabels}</strong>. La correcta era <strong>{correctLetter}</strong>.
                   </p>
                   <p style={{ fontSize: "16px", fontWeight: 700, color: "var(--color-text-main)" }}>
                     Puntaje actual: <span style={{ fontFamily: "Consolas, monospace" }}>{localScore} pts</span>

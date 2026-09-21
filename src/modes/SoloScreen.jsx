@@ -5,6 +5,7 @@ import Badge from "../components/common/Badge";
 import QuestionCard from "../components/quiz/QuestionCard";
 import MistakesCarousel from "../components/quiz/MistakesCarousel";
 import RewardCard from "../components/common/RewardCard";
+import { isAnswerCorrect, isMultipleSelect } from "../utils/answers";
 import {
   ArrowRight,
   RotateCcw,
@@ -26,12 +27,12 @@ export default function SoloScreen({ ayudantia, onExit }) {
   const currentQuestion = questions[currentIndex];
   const isLastQuestion = currentIndex === questions.length - 1;
 
-  const handleSelectAnswer = (index) => {
+  const handleSubmitAnswer = (answer = selectedOptionIndex) => {
     if (isAnswerRevealed) return;
-    setSelectedOptionIndex(index);
+    setSelectedOptionIndex(answer);
     setIsAnswerRevealed(true);
 
-    const isCorrect = index === currentQuestion.ans;
+    const isCorrect = isAnswerCorrect(currentQuestion, answer);
     if (isCorrect) {
       setScore((prev) => prev + (ayudantia.pointsPerQuestion || 1000));
       setCorrectAnswersCount((prev) => prev + 1);
@@ -43,11 +44,25 @@ export default function SoloScreen({ ayudantia, onExit }) {
         questionId: currentQuestion.id,
         questionIndex: currentIndex,
         question: currentQuestion,
-        selectedOption: index,
+        selectedOption: answer,
         correctOption: currentQuestion.ans,
         isCorrect,
       },
     ]);
+  };
+
+  const handleSelectAnswer = (index) => {
+    if (isAnswerRevealed) return;
+    if (isMultipleSelect(currentQuestion)) {
+      setSelectedOptionIndex((previous) => {
+        const selected = Array.isArray(previous) ? previous : [];
+        return selected.includes(index)
+          ? selected.filter((item) => item !== index)
+          : [...selected, index].sort((a, b) => a - b);
+      });
+      return;
+    }
+    handleSubmitAnswer(index);
   };
 
   const handleNext = () => {
@@ -243,6 +258,7 @@ export default function SoloScreen({ ayudantia, onExit }) {
         totalQuestions={questions.length}
         selectedAnswerIndex={selectedOptionIndex}
         onSelectAnswer={handleSelectAnswer}
+        onSubmitAnswer={isMultipleSelect(currentQuestion) ? () => handleSubmitAnswer() : null}
         isRevealed={isAnswerRevealed}
         showExplanation={isAnswerRevealed}
       />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { RealtimeQuizService } from "../services/realtimeService";
 import { audioService } from "../services/audioService";
-import { GAME_PHASES, OPTION_LABELS } from "../config/constants";
+import { GAME_PHASES } from "../config/constants";
 import Button from "../components/common/Button";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
@@ -10,6 +10,7 @@ import QuestionCard from "../components/quiz/QuestionCard";
 import VoteBars from "../components/quiz/VoteBars";
 import Leaderboard from "../components/quiz/Leaderboard";
 import TimerRing from "../components/quiz/TimerRing";
+import { answerLabels, isAnswerCorrect, responseToOptionIndices } from "../utils/answers";
 import {
   ArrowLeft,
   ArrowRight,
@@ -31,6 +32,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [players, setPlayers] = useState([]);
   const [votes, setVotes] = useState({});
+  const [responseCount, setResponseCount] = useState(0);
   const [remainingSeconds, setRemainingSeconds] = useState(ayudantia.defaultTimerSeconds || 60);
   const [showQrModal, setShowQrModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -44,6 +46,10 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
 
   const currentQuestion = ayudantia.questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === ayudantia.questions.length - 1;
+  const currentQuestionMeta = {
+    answerType: currentQuestion.type || "single_choice",
+    optionTexts: currentQuestion.opts || [],
+  };
 
   useEffect(() => {
     playersRef.current = players;
@@ -148,6 +154,8 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
               phase: gameStateRef.current.phase,
               questionIndex: gameStateRef.current.index,
               totalQuestions: ayudantia.questions.length,
+              answerType: currentQ.type || "single_choice",
+              optionTexts: currentQ.opts || [],
               correctAnswerIndex:
                 gameStateRef.current.phase === GAME_PHASES.REVEAL ? currentQ.ans : null,
               players: playersRef.current,
@@ -175,15 +183,18 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
           ];
         });
       },
-      onPlayerVote: ({ playerName, optionLabel, playerId }) => {
-        setVotes((prev) => ({
-          ...prev,
-          [optionLabel]: (prev[optionLabel] || 0) + 1,
-        }));
-
+      onPlayerVote: ({ playerName, optionLabel, answer, playerId }) => {
         const currentQ = currentQuestionRef.current;
-        const correctLabel = OPTION_LABELS[currentQ.ans];
-        const isCorrect = optionLabel === correctLabel;
+        const response = answer ?? optionLabel;
+        const selectedIndices = responseToOptionIndices(currentQ, response);
+        const selectedLabels = answerLabels(selectedIndices);
+        setResponseCount((prev) => prev + 1);
+        setVotes((prev) => selectedLabels.reduce(
+          (next, label) => ({ ...next, [label]: (next[label] || 0) + 1 }),
+          prev
+        ));
+
+        const isCorrect = isAnswerCorrect(currentQ, response);
 
         let pointsEarned = 0;
         if (isCorrect) {
@@ -203,7 +214,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
                 ...p,
                 score: p.score + pointsEarned,
                 lastEarnedPoints: pointsEarned,
-                lastOption: optionLabel,
+                lastOption: selectedLabels.join(", "),
               };
             }
             return p;
@@ -223,6 +234,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
   const handleStartGame = () => {
     setCurrentQuestionIndex(0);
     setVotes({});
+    setResponseCount(0);
     setRemainingSeconds(ayudantia.defaultTimerSeconds || 60);
     setPhase(GAME_PHASES.QUESTION);
     questionStartTimeRef.current = Date.now();
@@ -233,6 +245,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
         questionIndex: 0,
         totalQuestions: ayudantia.questions.length,
         timerSeconds: ayudantia.defaultTimerSeconds || 60,
+        ...currentQuestionMeta,
       });
     }
   };
@@ -245,6 +258,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
       serviceRef.current.broadcastState({
         phase: GAME_PHASES.REVEAL,
         correctAnswerIndex: currentQuestion.ans,
+        answerType: currentQuestion.type || "single_choice",
         players: playersRef.current,
       });
     }
@@ -276,6 +290,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
     const nextIndex = currentQuestionIndex + 1;
     setCurrentQuestionIndex(nextIndex);
     setVotes({});
+    setResponseCount(0);
     setRemainingSeconds(ayudantia.defaultTimerSeconds || 60);
     setPhase(GAME_PHASES.QUESTION);
     questionStartTimeRef.current = Date.now();
@@ -286,6 +301,8 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
         questionIndex: nextIndex,
         totalQuestions: ayudantia.questions.length,
         timerSeconds: ayudantia.defaultTimerSeconds || 60,
+        answerType: ayudantia.questions[nextIndex].type || "single_choice",
+        optionTexts: ayudantia.questions[nextIndex].opts || [],
       });
     }
   };
@@ -533,7 +550,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
               />
               <Badge variant="amber" icon={Users}>
                 <span style={{ fontSize: "16px", fontWeight: 700 }}>
-                  {totalVotesCount} / {players.length} votos
+                  {responseCount} / {players.length} respuestas
                 </span>
               </Badge>
             </div>
@@ -562,7 +579,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
                 <span style={{ fontSize: "16px" }}>Tiempo Finalizado</span>
               </Badge>
               <Badge variant="amber">
-                <span style={{ fontSize: "16px" }}>Votos emitidos: {totalVotesCount}</span>
+                <span style={{ fontSize: "16px" }}>Respuestas recibidas: {responseCount}</span>
               </Badge>
             </div>
 
@@ -575,7 +592,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
             />
 
             <Card title="Distribucion de Respuestas" subtitle="Votos emitidos por los estudiantes en la sala" style={{ marginTop: "24px", maxWidth: "980px", margin: "24px auto 0" }}>
-              <VoteBars votes={votes} totalVotes={totalVotesCount} />
+              <VoteBars votes={votes} totalVotes={totalVotesCount} optionsCount={currentQuestion.opts?.length || 4} />
             </Card>
 
             <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end" }}>
@@ -594,7 +611,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
                 <span style={{ fontSize: "16px" }}>Respuesta Oficial y Fundamento</span>
               </Badge>
               <Badge variant="amber">
-                <span style={{ fontSize: "16px" }}>Votos emitidos: {totalVotesCount}</span>
+                <span style={{ fontSize: "16px" }}>Respuestas recibidas: {responseCount}</span>
               </Badge>
             </div>
 
@@ -612,6 +629,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
                 totalVotes={totalVotesCount}
                 correctAnswerIndex={currentQuestion.ans}
                 isRevealed={true}
+                optionsCount={currentQuestion.opts?.length || 4}
               />
             </Card>
 
