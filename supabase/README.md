@@ -2,6 +2,8 @@
 
 La app usa Supabase Auth por enlace de correo y guarda asignaturas/quizzes en tablas privadas. Los estudiantes siguen entrando mediante código y apodo, sin autenticarse. Si las variables Supabase no están configuradas, la biblioteca se mantiene en `localStorage`.
 
+El editor admite selección única/múltiple, verdadero/falso, respuesta corta con variantes aceptadas y ordenamiento. Las imágenes nuevas se reducen en el navegador, se suben a Cloudflare R2 y el quiz guarda su URL pública. Las preguntas antiguas con imágenes Base64 siguen siendo compatibles.
+
 ## Puesta en marcha
 
 1. Ejecuta `migrations/20260920000100_teacher_quiz_catalog.sql` en el SQL Editor del proyecto Supabase.
@@ -18,6 +20,27 @@ La app usa Supabase Auth por enlace de correo y guarda asignaturas/quizzes en ta
    Confirma que la sentencia insertó una fila. La app solo concede el catálogo a cuentas presentes en `teacher_access`.
 5. Configura `.env` desde `.env.example` con Project URL, la clave pública anon/publishable y `VITE_APP_URL` (en producción, la URL de Vercel). No uses nunca `service_role` en el frontend ni en una variable `VITE_*`. En Vercel, define `VITE_APP_URL` en Environment Variables y vuelve a desplegar para que Vite la incorpore al build.
 6. Reinicia Vite después de cambiar variables. El primer inicio docente migra el catálogo local existente si la cuenta todavía no tiene asignaturas remotas.
+
+## Cloudflare R2 para imágenes
+
+1. Crea un bucket R2 de clase **Standard** y habilita acceso público de lectura usando un dominio personalizado (por ejemplo, `images.tudominio.cl`). Configura ese dominio como `R2_PUBLIC_BASE_URL`; las imágenes de preguntas serán accesibles a cualquier persona que tenga el enlace.
+2. Crea un token de API de R2 limitado al bucket, con permiso de lectura/escritura de objetos. En Vercel agrega `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` y `R2_PUBLIC_BASE_URL`. No agregues `VITE_` a estas claves.
+3. En Vercel agrega también `SUPABASE_URL` y `SUPABASE_ANON_KEY` con los mismos valores que sus variables `VITE_` correspondientes. La función `/api/images/upload-url` valida el token de sesión y consulta `teacher_access` antes de emitir una URL temporal de carga.
+4. En la configuración CORS del bucket permite el origen exacto de producción y el origen local, método `PUT`, y cabecera `Content-Type`. Ejemplo:
+
+   ```json
+   [
+     {
+       "AllowedOrigins": ["https://quiz-ayudantias.vercel.app", "http://localhost:5173"],
+       "AllowedMethods": ["PUT"],
+       "AllowedHeaders": ["Content-Type"],
+       "ExposeHeaders": ["ETag"],
+       "MaxAgeSeconds": 3600
+     }
+   ]
+   ```
+
+5. Vuelve a desplegar Vercel después de agregar las variables. Para probar también la función API localmente, usa `vercel dev`; el servidor de desarrollo puro de Vite no ejecuta las funciones `/api`.
 
 Las políticas RLS y los grants se aplican en la migración: el rol `anon` no obtiene acceso a estas tablas; una cuenta autenticada solo puede leer y escribir sus propias filas si además está habilitada en `teacher_access`.
 

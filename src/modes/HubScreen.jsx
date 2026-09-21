@@ -16,7 +16,10 @@ import Button from "../components/common/Button";
 import Badge from "../components/common/Badge";
 import PrivacyNotice from "../components/common/PrivacyNotice";
 import { sanitizeNickname, sanitizeRoomCode, generateAnonymousAlias } from "../utils/sanitizers";
+import { uploadQuestionImage } from "../utils/questionImages";
 import {
+  ArrowDown,
+  ArrowUp,
   BookOpen,
   Archive,
   Check,
@@ -26,6 +29,7 @@ import {
   RotateCcw,
   Smartphone,
   Upload,
+  ImagePlus,
   X,
 } from "lucide-react";
 
@@ -36,6 +40,8 @@ const newQuestion = () => ({
   options: ["", "", "", ""],
   correctOption: "0",
   correctOptions: ["0"],
+  acceptedAnswers: "",
+  imageUrl: "",
   explanation: "",
 });
 
@@ -119,6 +125,7 @@ export default function HubScreen({
   const [joinError, setJoinError] = useState("");
   const [pageError, setPageError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploadingImageIndex, setUploadingImageIndex] = useState(null);
 
   const selectedSubject = useMemo(
     () => catalog.subjects.find((subject) => subject.id === selectedSubjectId) || catalog.subjects[0],
@@ -234,6 +241,43 @@ export default function HubScreen({
         }
         return { ...question, [field]: value };
       }),
+    }));
+  };
+
+  const handleImageUpload = async (questionIndex, file) => {
+    if (!file) return;
+    setFormError("");
+    setUploadingImageIndex(questionIndex);
+    try {
+      const imageUrl = await uploadQuestionImage(file);
+      updateQuestion(questionIndex, "imageUrl", imageUrl);
+    } catch (error) {
+      setFormError(error.message || "No se pudo cargar la imagen.");
+    } finally {
+      setUploadingImageIndex(null);
+    }
+  };
+
+  const moveOption = (questionIndex, optionIndex, direction) => {
+    setQuizForm((current) => ({
+      ...current,
+      questions: current.questions.map((question, index) => {
+        if (index !== questionIndex) return question;
+        const targetIndex = optionIndex + direction;
+        if (targetIndex < 0 || targetIndex >= question.options.length) return question;
+        const options = [...question.options];
+        [options[optionIndex], options[targetIndex]] = [options[targetIndex], options[optionIndex]];
+        return { ...question, options };
+      }),
+    }));
+  };
+
+  const removeOrderingOption = (questionIndex, optionIndex) => {
+    setQuizForm((current) => ({
+      ...current,
+      questions: current.questions.map((question, index) => index === questionIndex
+        ? { ...question, options: question.options.filter((_, itemIndex) => itemIndex !== optionIndex) }
+        : question),
     }));
   };
 
@@ -438,31 +482,69 @@ export default function HubScreen({
                     <option value="single_choice">Selección única</option>
                     <option value="true_false">Verdadero / Falso</option>
                     <option value="multiple_select">Selección múltiple</option>
+                    <option value="short_answer">Respuesta corta</option>
+                    <option value="ordering">Ordenar elementos</option>
                   </select>
                 </label>
                 <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Enunciado *
                   <textarea required value={question.prompt} onChange={(event) => updateQuestion(questionIndex, "prompt", event.target.value)} rows={2} style={{ ...fieldStyle, marginTop: 5, resize: "vertical" }} />
                 </label>
+                <div style={{ display: "grid", gap: 9 }}>
+                  {question.imageUrl && (
+                    <div style={{ position: "relative", width: "fit-content", maxWidth: "100%" }}>
+                      <img src={question.imageUrl} alt={`Imagen de la pregunta ${questionIndex + 1}`} style={{ display: "block", maxWidth: "100%", maxHeight: 260, objectFit: "contain", border: "1px solid #CBD5E1", borderRadius: 10 }} />
+                      <button type="button" onClick={() => updateQuestion(questionIndex, "imageUrl", "")} style={{ marginTop: 6, border: 0, background: "transparent", color: "#B91C1C", cursor: "pointer", padding: 0 }}>Quitar imagen</button>
+                    </div>
+                  )}
+                  <label style={{ display: "grid", gridTemplateColumns: "auto minmax(0, 1fr)", alignItems: "center", gap: 8, color: "#475569", fontSize: 13, fontWeight: 700 }}>
+                    <ImagePlus size={17} color="#1E2761" />
+                    <span>{uploadingImageIndex === questionIndex ? "Subiendo imagen a R2…" : question.imageUrl ? "Reemplazar imagen" : "Agregar imagen (opcional)"}
+                      <input type="file" accept="image/*" disabled={uploadingImageIndex !== null} onChange={(event) => { handleImageUpload(questionIndex, event.target.files?.[0]); event.target.value = ""; }} style={{ display: "block", maxWidth: "100%", marginTop: 5, fontSize: 12, fontWeight: 400 }} aria-label={`Cargar imagen para la pregunta ${questionIndex + 1}`} />
+                    </span>
+                  </label>
+                  <span style={{ color: "#64748B", fontSize: 11 }}>Se optimiza y guarda en Cloudflare R2; máximo 8 MB por archivo original y 220 KB al comprimir.</span>
+                </div>
                 <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Tema
                   <input value={question.topic} onChange={(event) => updateQuestion(questionIndex, "topic", event.target.value)} style={{ ...fieldStyle, marginTop: 5 }} />
                 </label>
-                <div style={{ display: "grid", gap: 8 }}>
-                  {question.options.map((option, optionIndex) => (
-                    <label key={optionIndex} style={{ display: "grid", gridTemplateColumns: "auto minmax(0, 1fr)", gap: 9, alignItems: "center", color: "#475569", fontSize: 13 }}>
-                      <input
-                        type={question.type === "multiple_select" ? "checkbox" : "radio"}
-                        name={`correct-${questionIndex}`}
-                        checked={question.type === "multiple_select" ? question.correctOptions.includes(String(optionIndex)) : question.correctOption === String(optionIndex)}
-                        onChange={(event) => question.type === "multiple_select"
-                          ? updateQuestion(questionIndex, "correctOptions", event.target.checked, optionIndex)
-                          : updateQuestion(questionIndex, "correctOption", String(optionIndex))}
-                        aria-label={`Marcar alternativa ${optionIndex + 1} correcta`}
-                      />
-                      <input required readOnly={question.type === "true_false"} value={option} onChange={(event) => updateQuestion(questionIndex, "option", event.target.value, optionIndex)} placeholder={`Alternativa ${optionIndex + 1}`} style={{ ...fieldStyle, ...(question.type === "true_false" ? { background: "#F1F5F9" } : {}) }} />
-                    </label>
-                  ))}
-                </div>
-                <p style={{ margin: 0, color: "#64748B", fontSize: 12 }}>{question.type === "multiple_select" ? "Marca todas las alternativas correctas." : "Marca el círculo junto a la alternativa correcta."}</p>
+                {question.type === "short_answer" ? (
+                  <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Respuestas aceptadas * (una por línea)
+                    <textarea required value={question.acceptedAnswers} onChange={(event) => updateQuestion(questionIndex, "acceptedAnswers", event.target.value)} rows={3} placeholder={"Ej. encapsulamiento\nencapsulación"} style={{ ...fieldStyle, marginTop: 5, resize: "vertical" }} />
+                    <span style={{ display: "block", marginTop: 5, color: "#64748B", fontSize: 12 }}>Se ignoran mayúsculas, tildes y espacios repetidos al corregir.</span>
+                  </label>
+                ) : (
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {question.options.map((option, optionIndex) => (
+                      <div key={optionIndex} style={{ display: "grid", gridTemplateColumns: question.type === "ordering" ? "auto minmax(0, 1fr) auto" : "auto minmax(0, 1fr)", gap: 9, alignItems: "center", color: "#475569", fontSize: 13 }}>
+                        {question.type === "ordering" ? (
+                          <span style={{ color: "#1E2761", fontWeight: 800, minWidth: 22 }}>{optionIndex + 1}.</span>
+                        ) : (
+                          <input
+                            type={question.type === "multiple_select" ? "checkbox" : "radio"}
+                            name={`correct-${questionIndex}`}
+                            checked={question.type === "multiple_select" ? question.correctOptions.includes(String(optionIndex)) : question.correctOption === String(optionIndex)}
+                            onChange={(event) => question.type === "multiple_select"
+                              ? updateQuestion(questionIndex, "correctOptions", event.target.checked, optionIndex)
+                              : updateQuestion(questionIndex, "correctOption", String(optionIndex))}
+                            aria-label={`Marcar alternativa ${optionIndex + 1} correcta`}
+                          />
+                        )}
+                        <input required readOnly={question.type === "true_false"} value={option} onChange={(event) => updateQuestion(questionIndex, "option", event.target.value, optionIndex)} placeholder={question.type === "ordering" ? `Elemento en posición ${optionIndex + 1}` : `Alternativa ${optionIndex + 1}`} style={{ ...fieldStyle, ...(question.type === "true_false" ? { background: "#F1F5F9" } : {}) }} />
+                        {question.type === "ordering" && (
+                          <div style={{ display: "flex", gap: 4 }}>
+                            <button type="button" onClick={() => moveOption(questionIndex, optionIndex, -1)} disabled={optionIndex === 0} aria-label={`Subir elemento ${optionIndex + 1}`} style={{ border: "1px solid #CBD5E1", background: "#FFF", borderRadius: 6, padding: 6, cursor: optionIndex === 0 ? "not-allowed" : "pointer" }}><ArrowUp size={15} /></button>
+                            <button type="button" onClick={() => moveOption(questionIndex, optionIndex, 1)} disabled={optionIndex === question.options.length - 1} aria-label={`Bajar elemento ${optionIndex + 1}`} style={{ border: "1px solid #CBD5E1", background: "#FFF", borderRadius: 6, padding: 6, cursor: optionIndex === question.options.length - 1 ? "not-allowed" : "pointer" }}><ArrowDown size={15} /></button>
+                            {question.options.length > 2 && <button type="button" onClick={() => removeOrderingOption(questionIndex, optionIndex)} aria-label={`Eliminar elemento ${optionIndex + 1}`} style={{ border: "1px solid #FECACA", background: "#FFF", color: "#B91C1C", borderRadius: 6, padding: 6, cursor: "pointer" }}><X size={15} /></button>}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {question.type === "ordering" && question.options.length < 8 && (
+                      <button type="button" onClick={() => setQuizForm((current) => ({ ...current, questions: current.questions.map((item, index) => index === questionIndex ? { ...item, options: [...item.options, ""] } : item) }))} style={{ justifySelf: "start", border: "1px dashed #94A3B8", background: "#F8FAFC", color: "#1E2761", borderRadius: 7, padding: "7px 10px", cursor: "pointer", fontWeight: 700 }}>+ Agregar elemento</button>
+                    )}
+                  </div>
+                )}
+                {question.type !== "short_answer" && <p style={{ margin: 0, color: "#64748B", fontSize: 12 }}>{question.type === "multiple_select" ? "Marca todas las alternativas correctas." : question.type === "ordering" ? "La lista está en el orden correcto; los estudiantes deberán reordenarla." : "Marca el círculo junto a la alternativa correcta."}</p>}
                 <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Explicación (opcional)
                   <textarea value={question.explanation} onChange={(event) => updateQuestion(questionIndex, "explanation", event.target.value)} rows={2} style={{ ...fieldStyle, marginTop: 5, resize: "vertical" }} />
                 </label>
@@ -473,7 +555,7 @@ export default function HubScreen({
             ))}
 
             <Button type="button" variant="secondary" icon={Plus} onClick={() => setQuizForm((current) => ({ ...current, questions: [...current.questions, newQuestion()] }))}>Agregar pregunta</Button>
-            <p style={{ margin: 0, color: "#64748B", fontSize: 12 }}>La selección múltiple se corrige con puntaje completo solo cuando se eligen todas las respuestas correctas y ninguna incorrecta.</p>
+            <p style={{ margin: 0, color: "#64748B", fontSize: 12 }}>Las respuestas cortas aceptan variantes y se corrigen ignorando tildes y mayúsculas. La selección múltiple requiere todas las correctas y ninguna incorrecta.</p>
             {formError && <p role="alert" style={{ color: "#B91C1C", margin: 0 }}>{formError}</p>}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 9 }}>
               <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>

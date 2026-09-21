@@ -4,7 +4,7 @@ import Badge from '../common/Badge';
 import Button from '../common/Button';
 import { BookOpen, AlertCircle, Check } from 'lucide-react';
 import { OPTION_LABELS, OPTION_COLORS } from '../../config/constants';
-import { getAnswerIndices, isMultipleSelect } from '../../utils/answers';
+import { formatAnswerText, getAnswerIndices, isAnswerCorrect, isMultipleSelect, isOrdering, isShortAnswer } from '../../utils/answers';
 
 export default function QuestionCard({
   question,
@@ -12,6 +12,7 @@ export default function QuestionCard({
   totalQuestions = 1,
   selectedAnswerIndex = null,
   onSelectAnswer = null,
+  onReorderAnswer = null,
   onSubmitAnswer = null,
   isRevealed = false,
   showExplanation = false,
@@ -24,6 +25,11 @@ export default function QuestionCard({
       : [selectedAnswerIndex];
   const correctIndices = getAnswerIndices(question.ans);
   const multipleSelect = isMultipleSelect(question);
+  const ordering = isOrdering(question);
+  const shortAnswer = isShortAnswer(question);
+  const orderingIndices = Array.isArray(selectedAnswerIndex)
+    ? selectedAnswerIndex
+    : ordering && !onReorderAnswer ? (question.opts || []).map((_, index) => index) : [];
 
   return (
     <Card
@@ -65,17 +71,34 @@ export default function QuestionCard({
           fontSize: 'clamp(19px, 3.8vw, 27px)',
           fontWeight: 800,
           color: 'var(--color-text-main)',
-          marginBottom: multipleSelect ? '14px' : '20px',
+          marginBottom: multipleSelect || ordering || shortAnswer ? '14px' : '20px',
           lineHeight: 1.35,
         }}
       >
         {question.q}
       </h2>
 
+      {question.image && (
+        <img
+          src={question.image}
+          alt="Imagen de apoyo para la pregunta"
+          style={{ display: 'block', maxWidth: '100%', maxHeight: 420, objectFit: 'contain', margin: '0 auto 20px', borderRadius: 12, border: '1px solid var(--color-border)' }}
+        />
+      )}
+
       {multipleSelect && (
         <p style={{ margin: '0 0 14px', color: 'var(--color-text-secondary)', fontSize: '14px', fontWeight: 600 }}>
           Selecciona todas las alternativas correctas.
         </p>
+      )}
+
+      {ordering && !onReorderAnswer && !isRevealed && (
+        <p style={{ margin: '0 0 14px', color: 'var(--color-text-secondary)', fontSize: 14, fontWeight: 600 }}>
+          Ordena los elementos desde tu dispositivo.
+        </p>
+      )}
+      {ordering && !onReorderAnswer && isRevealed && (
+        <p style={{ margin: '0 0 14px', color: '#166534', fontWeight: 800 }}>Orden correcto: {formatAnswerText(question, question.ans)}</p>
       )}
 
       {question.diagramSnippet && (
@@ -98,7 +121,55 @@ export default function QuestionCard({
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+      {shortAnswer && (
+        <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+          <label htmlFor="short-answer-response" style={{ color: 'var(--color-text-secondary)', fontWeight: 700, fontSize: 14 }}>Tu respuesta</label>
+          <input
+            id="short-answer-response"
+            value={typeof selectedAnswerIndex === 'string' ? selectedAnswerIndex : ''}
+            onChange={(event) => onSelectAnswer && onSelectAnswer(event.target.value)}
+            disabled={isRevealed || !onSelectAnswer}
+            maxLength={240}
+            placeholder="Escribe una respuesta breve"
+            style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--color-border)', borderRadius: 10, padding: '13px 15px', font: 'inherit' }}
+          />
+          {isRevealed && (
+            <p style={{ margin: 0, color: '#166534', fontWeight: 700 }}>Respuestas aceptadas: {formatAnswerText(question, question.ans)}</p>
+          )}
+          {onSubmitAnswer && !isRevealed && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button variant="primary" icon={Check} onClick={onSubmitAnswer} disabled={!String(selectedAnswerIndex || '').trim()}>Enviar respuesta</Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {ordering && onReorderAnswer && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 16 }}>
+          {orderingIndices.map((optionIndex, position) => (
+            <div key={`${optionIndex}-${position}`} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', border: '1px solid var(--color-border)', borderRadius: 10, background: isRevealed && correctIndices[position] === optionIndex ? 'var(--color-success-bg)' : 'var(--color-surface)' }}>
+              <span style={{ minWidth: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', background: '#EEF2FF', color: 'var(--color-primary)', fontWeight: 800 }}>{position + 1}</span>
+              <span style={{ flex: 1, lineHeight: 1.4 }}>{question.opts[optionIndex]}</span>
+              {!isRevealed && (
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button type="button" aria-label={`Subir ${question.opts[optionIndex]}`} disabled={position === 0} onClick={() => onReorderAnswer(moveItem(orderingIndices, position, -1))} style={reorderButtonStyle}>↑</button>
+                  <button type="button" aria-label={`Bajar ${question.opts[optionIndex]}`} disabled={position === orderingIndices.length - 1} onClick={() => onReorderAnswer(moveItem(orderingIndices, position, 1))} style={reorderButtonStyle}>↓</button>
+                </div>
+              )}
+            </div>
+          ))}
+          {isRevealed && !isAnswerCorrect(question, orderingIndices) && (
+            <p style={{ margin: '4px 0 0', color: '#166534', fontWeight: 700 }}>Orden correcto: {formatAnswerText(question, question.ans)}</p>
+          )}
+          {onSubmitAnswer && !isRevealed && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+              <Button variant="primary" icon={Check} onClick={onSubmitAnswer} disabled={orderingIndices.length < 2}>Confirmar orden</Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!shortAnswer && !ordering && <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
         {(question.opts || []).map((optionText, idx) => {
           const label = OPTION_LABELS[idx] || String(idx + 1);
           const isSelected = selectedIndices.includes(idx);
@@ -182,7 +253,7 @@ export default function QuestionCard({
             </button>
           );
         })}
-      </div>
+      </div>}
 
       {multipleSelect && onSubmitAnswer && !isRevealed && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
@@ -235,4 +306,23 @@ export default function QuestionCard({
       )}
     </Card>
   );
+}
+
+const reorderButtonStyle = {
+  width: 32,
+  height: 32,
+  border: '1px solid var(--color-border)',
+  borderRadius: 7,
+  background: '#FFFFFF',
+  color: 'var(--color-primary)',
+  fontWeight: 800,
+  cursor: 'pointer',
+};
+
+function moveItem(items, index, direction) {
+  const target = index + direction;
+  if (target < 0 || target >= items.length) return items;
+  const next = [...items];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
 }

@@ -9,7 +9,7 @@ import {
   XCircle,
   CheckCircle2,
 } from "lucide-react";
-import { answerLabels, getAnswerIndices } from "../../utils/answers";
+import { answerLabels, formatAnswerText, isShortAnswer, isOrdering } from "../../utils/answers";
 
 export default function MistakesCarousel({ mistakes = [], totalQuestions = 16 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -25,8 +25,10 @@ export default function MistakesCarousel({ mistakes = [], totalQuestions = 16 })
   const correctOptIndex = currentItem.correctOption;
   const selectedLabels = answerLabels(userOptIndex);
   const correctLabels = answerLabels(correctOptIndex);
-  const selectedText = getAnswerIndices(userOptIndex).map((index) => q.opts[index]).filter(Boolean).join(", ");
-  const correctText = getAnswerIndices(correctOptIndex).map((index) => q.opts[index]).filter(Boolean).join(", ");
+  const selectedText = formatAnswerText(q, userOptIndex);
+  const correctText = formatAnswerText(q, correctOptIndex);
+  const responseLabel = isShortAnswer(q) ? "Tu respuesta" : isOrdering(q) ? "Tu orden" : `Tu respuesta (${selectedLabels.join(", ") || "sin respuesta"})`;
+  const correctLabel = isShortAnswer(q) ? "Respuestas aceptadas:" : isOrdering(q) ? "Orden correcto:" : `Respuesta correcta (${correctLabels.join(", ")}):`;
 
   const handlePrev = () => {
     if (safeIndex > 0) {
@@ -128,6 +130,8 @@ export default function MistakesCarousel({ mistakes = [], totalQuestions = 16 })
           {q.q}
         </h3>
 
+        {q.image && <img src={q.image} alt="Imagen de apoyo de la pregunta" style={{ display: "block", maxWidth: "100%", maxHeight: 340, objectFit: "contain", margin: "0 auto 16px", borderRadius: 10, border: "1px solid var(--color-border)" }} />}
+
         {q.diagramSnippet && (
           <div
             style={{
@@ -174,7 +178,7 @@ export default function MistakesCarousel({ mistakes = [], totalQuestions = 16 })
             >
               <XCircle size={16} color="var(--color-danger)" />
               <span style={{ fontSize: "12.5px", fontWeight: 800, color: "#991B1B" }}>
-                Tu respuesta ({selectedLabels.join(", ") || "sin respuesta"}):
+                {responseLabel}:
               </span>
             </div>
             <p style={{ fontSize: "13.5px", color: "#7F1D1D", margin: 0, lineHeight: 1.45 }}>
@@ -201,7 +205,7 @@ export default function MistakesCarousel({ mistakes = [], totalQuestions = 16 })
             >
               <CheckCircle2 size={16} color="var(--color-success)" />
               <span style={{ fontSize: "12.5px", fontWeight: 800, color: "#166534" }}>
-                Respuesta correcta ({correctLabels.join(", ")}):
+                {correctLabel}
               </span>
             </div>
             <p style={{ fontSize: "13.5px", color: "#14532D", margin: 0, lineHeight: 1.45 }}>

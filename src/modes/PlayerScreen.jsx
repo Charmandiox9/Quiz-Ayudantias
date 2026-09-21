@@ -5,7 +5,7 @@ import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
 import Button from "../components/common/Button";
 import { getPlayerDeviceId, clearActiveSession } from "../utils/session";
-import { answerLabels, isAnswerCorrect, isMultipleSelect } from "../utils/answers";
+import { answerLabels, formatAnswerText, isAnswerCorrect, isMultipleSelect, isOrdering, isShortAnswer } from "../utils/answers";
 import { CheckCircle, Clock, Trophy, ArrowLeft, Wifi, AlertTriangle, XCircle, Award, Zap } from "lucide-react";
 
 export default function PlayerScreen({ playerInfo, onExit }) {
@@ -15,7 +15,10 @@ export default function PlayerScreen({ playerInfo, onExit }) {
     totalQuestions: 1,
     correctAnswerIndex: null,
     answerType: "single_choice",
+    prompt: "",
+    image: "",
     optionTexts: [],
+    optionOrder: [],
     players: [],
   });
   const [selectedOption, setSelectedOption] = useState(null);
@@ -46,6 +49,9 @@ export default function PlayerScreen({ playerInfo, onExit }) {
       },
       onGameState: (state) => {
         setGameState((prev) => ({ ...prev, ...state }));
+        if (state.phase === GAME_PHASES.QUESTION && state.answerType === "ordering" && Array.isArray(state.optionOrder)) {
+          setSelectedOption((current) => Array.isArray(current) ? current : state.optionOrder);
+        }
         if (state.players && Array.isArray(state.players)) {
           const myEntry = state.players.find(
             (p) => (playerId && p.id === playerId) || p.name.toLowerCase() === playerInfo.name.toLowerCase()
@@ -66,9 +72,12 @@ export default function PlayerScreen({ playerInfo, onExit }) {
           totalQuestions: data.totalQuestions,
           correctAnswerIndex: null,
           answerType: data.answerType || "single_choice",
+          prompt: data.prompt || "",
+          image: data.image || "",
           optionTexts: data.optionTexts || [],
+          optionOrder: data.optionOrder || [],
         }));
-        setSelectedOption(null);
+        setSelectedOption(data.answerType === "ordering" ? (data.optionOrder || []) : null);
         setHasVoted(false);
         setLocalLastEarned(null);
       },
@@ -102,6 +111,7 @@ export default function PlayerScreen({ playerInfo, onExit }) {
 
   const handleVote = (optionIndex) => {
     if (hasVoted || gameState.phase !== GAME_PHASES.QUESTION) return;
+    if (gameState.answerType === "ordering" || gameState.answerType === "short_answer") return;
     if (isMultipleSelect({ type: gameState.answerType })) {
       setSelectedOption((previous) => {
         const selected = Array.isArray(previous) ? previous : [];
@@ -120,20 +130,45 @@ export default function PlayerScreen({ playerInfo, onExit }) {
     sendVote(selectedOption);
   };
 
+  const handleSubmitWrittenAnswer = () => {
+    if (typeof selectedOption === "string" && selectedOption.trim()) sendVote(selectedOption.trim());
+  };
+
+  const handleSubmitOrder = () => {
+    if (Array.isArray(selectedOption) && selectedOption.length > 1) sendVote(selectedOption);
+  };
+
+  const moveOrderItem = (index, direction) => {
+    setSelectedOption((previous) => {
+      if (!Array.isArray(previous)) return previous;
+      const target = index + direction;
+      if (target < 0 || target >= previous.length) return previous;
+      const next = [...previous];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+
   const handleExit = () => {
     clearActiveSession();
     onExit();
   };
 
-  const correctLetter =
-    gameState.correctAnswerIndex !== null && gameState.correctAnswerIndex !== undefined
-      ? answerLabels(gameState.correctAnswerIndex).join(", ")
-      : null;
+  const resultQuestion = { type: gameState.answerType, ans: gameState.correctAnswerIndex, opts: gameState.optionTexts };
+  const correctLetter = gameState.correctAnswerIndex !== null && gameState.correctAnswerIndex !== undefined
+    ? (isShortAnswer(resultQuestion) || isOrdering(resultQuestion)
+      ? formatAnswerText(resultQuestion, gameState.correctAnswerIndex)
+      : answerLabels(gameState.correctAnswerIndex).join(", "))
+    : null;
   const isCorrect = hasVoted && isAnswerCorrect(
     { type: gameState.answerType, ans: gameState.correctAnswerIndex },
     selectedOption
   );
-  const selectedLabels = answerLabels(selectedOption).join(", ");
+  const selectedLabels = isShortAnswer(gameState)
+    ? String(selectedOption || "")
+    : isOrdering(gameState)
+      ? formatAnswerText({ ...gameState, opts: gameState.optionTexts }, selectedOption)
+      : answerLabels(selectedOption).join(", ");
   const answerOptions = gameState.optionTexts?.length
     ? gameState.optionTexts
     : OPTION_LABELS.slice(0, 4);
@@ -205,14 +240,39 @@ export default function PlayerScreen({ playerInfo, onExit }) {
               <span style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-secondary)" }}>
                 Pregunta {gameState.questionIndex + 1} de {gameState.totalQuestions}
               </span>
-              <h3 style={{ fontSize: "20px", fontWeight: 800, color: "var(--color-text-main)", marginTop: "4px" }}>
-                {gameState.answerType === "multiple_select"
-                  ? "Selecciona todas las alternativas que correspondan:"
-                  : "Elige tu respuesta en la pantalla:"}
-              </h3>
+              {gameState.prompt && <h2 style={{ fontSize: "clamp(20px, 5vw, 27px)", fontWeight: 800, color: "var(--color-text-main)", lineHeight: 1.35, margin: "12px 0 0" }}>{gameState.prompt}</h2>}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "14px" }}>
+            {gameState.image && <img src={gameState.image} alt="Imagen de apoyo para la pregunta" style={{ display: "block", width: "100%", maxHeight: 360, objectFit: "contain", margin: "0 auto 16px", borderRadius: 12, border: "1px solid var(--color-border)" }} />}
+
+            {gameState.answerType === "short_answer" && (
+              <div style={{ display: "grid", gap: 12 }}>
+                <label htmlFor="live-short-answer" style={{ color: "var(--color-text-secondary)", fontWeight: 700 }}>Escribe una respuesta breve</label>
+                <input id="live-short-answer" value={typeof selectedOption === "string" ? selectedOption : ""} onChange={(event) => setSelectedOption(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") handleSubmitWrittenAnswer(); }} disabled={hasVoted} maxLength={240} placeholder="Tu respuesta" style={{ width: "100%", boxSizing: "border-box", border: "1px solid var(--color-border)", borderRadius: 10, padding: "14px 15px", font: "inherit" }} />
+                <Button variant="primary" fullWidth disabled={!String(selectedOption || "").trim() || hasVoted} onClick={handleSubmitWrittenAnswer}>Enviar respuesta</Button>
+              </div>
+            )}
+
+            {gameState.answerType === "ordering" && (
+              <div style={{ display: "grid", gap: 9 }}>
+                <p style={{ margin: "0 0 4px", color: "var(--color-text-secondary)", fontWeight: 700 }}>Ordena los elementos y confirma tu respuesta:</p>
+                {(Array.isArray(selectedOption) ? selectedOption : gameState.optionOrder).map((originalIndex, position, order) => (
+                  <div key={`${originalIndex}-${position}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", border: "1px solid var(--color-border)", borderRadius: 10, background: "#FFFFFF" }}>
+                    <span style={{ minWidth: 28, height: 28, display: "grid", placeItems: "center", borderRadius: 8, background: "#EEF2FF", color: "var(--color-primary)", fontWeight: 800 }}>{position + 1}</span>
+                    <span style={{ flex: 1, textAlign: "left", lineHeight: 1.4 }}>{gameState.optionTexts[originalIndex]}</span>
+                    {!hasVoted && <>
+                      <button type="button" aria-label={`Subir ${gameState.optionTexts[originalIndex]}`} disabled={position === 0} onClick={() => moveOrderItem(position, -1)} style={orderButtonStyle}>↑</button>
+                      <button type="button" aria-label={`Bajar ${gameState.optionTexts[originalIndex]}`} disabled={position === order.length - 1} onClick={() => moveOrderItem(position, 1)} style={orderButtonStyle}>↓</button>
+                    </>}
+                  </div>
+                ))}
+                <Button variant="primary" fullWidth disabled={hasVoted || !Array.isArray(selectedOption) || selectedOption.length < 2} onClick={handleSubmitOrder}>Confirmar orden</Button>
+              </div>
+            )}
+
+            {gameState.answerType !== "short_answer" && gameState.answerType !== "ordering" && <>
+              <p style={{ margin: "0 0 12px", color: "var(--color-text-secondary)", fontWeight: 700 }}>{gameState.answerType === "multiple_select" ? "Selecciona todas las alternativas correctas:" : "Elige una alternativa:"}</p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "14px" }}>
               {answerOptions.map((optionText, optionIndex) => {
                 const label = OPTION_LABELS[optionIndex] || String(optionIndex + 1);
                 const color = OPTION_COLORS[label] || "#475569";
@@ -253,7 +313,8 @@ export default function PlayerScreen({ playerInfo, onExit }) {
                   </button>
                 );
               })}
-            </div>
+              </div>
+            </>}
 
             {gameState.answerType === "multiple_select" && (
               <Button
@@ -335,7 +396,7 @@ export default function PlayerScreen({ playerInfo, onExit }) {
                     Respuesta Incorrecta
                   </h3>
                   <p style={{ fontSize: "16px", color: "var(--color-text-secondary)", marginBottom: "10px" }}>
-                    Elegiste <strong>{selectedLabels}</strong>. La correcta era <strong>{correctLetter}</strong>.
+                    Elegiste <strong>{selectedLabels || "sin respuesta"}</strong>. La respuesta correcta era <strong>{correctLetter}</strong>.
                   </p>
                   <p style={{ fontSize: "16px", fontWeight: 700, color: "var(--color-text-main)" }}>
                     Puntaje actual: <span style={{ fontFamily: "Consolas, monospace" }}>{localScore} pts</span>
@@ -359,7 +420,7 @@ export default function PlayerScreen({ playerInfo, onExit }) {
                   Sin Voto Registrado
                 </h3>
                 <p style={{ fontSize: "16px", color: "var(--color-text-secondary)" }}>
-                  La respuesta correcta era la opcion <strong>{correctLetter}</strong>.
+                  La respuesta correcta era <strong>{correctLetter}</strong>.
                 </p>
                 <p style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-main)", marginTop: "10px" }}>
                   Puntaje acumulado: {localScore} pts
@@ -422,3 +483,14 @@ export default function PlayerScreen({ playerInfo, onExit }) {
     </div>
   );
 }
+
+const orderButtonStyle = {
+  width: 32,
+  height: 32,
+  border: "1px solid var(--color-border)",
+  borderRadius: 7,
+  background: "#FFFFFF",
+  color: "var(--color-primary)",
+  fontWeight: 800,
+  cursor: "pointer",
+};

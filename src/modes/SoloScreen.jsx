@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Card from "../components/common/Card";
 import Button from "../components/common/Button";
 import Badge from "../components/common/Badge";
 import QuestionCard from "../components/quiz/QuestionCard";
 import MistakesCarousel from "../components/quiz/MistakesCarousel";
 import RewardCard from "../components/common/RewardCard";
-import { isAnswerCorrect, isMultipleSelect } from "../utils/answers";
+import { isAnswerCorrect, isMultipleSelect, isOrdering, isShortAnswer, shuffleIndices } from "../utils/answers";
 import {
   ArrowRight,
   RotateCcw,
@@ -17,6 +17,7 @@ import {
 export default function SoloScreen({ ayudantia, onExit }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOptionIndex, setSelectedOptionIndex] = useState(null);
+  const [orderingOrder, setOrderingOrder] = useState([]);
   const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
   const [score, setScore] = useState(0);
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
@@ -27,7 +28,12 @@ export default function SoloScreen({ ayudantia, onExit }) {
   const currentQuestion = questions[currentIndex];
   const isLastQuestion = currentIndex === questions.length - 1;
 
-  const handleSubmitAnswer = (answer = selectedOptionIndex) => {
+  useEffect(() => {
+    setSelectedOptionIndex(null);
+    setOrderingOrder(isOrdering(currentQuestion) ? shuffleIndices(currentQuestion.opts?.length || 0) : []);
+  }, [currentQuestion]);
+
+  const handleSubmitAnswer = (answer = isOrdering(currentQuestion) ? orderingOrder : selectedOptionIndex) => {
     if (isAnswerRevealed) return;
     setSelectedOptionIndex(answer);
     setIsAnswerRevealed(true);
@@ -53,6 +59,14 @@ export default function SoloScreen({ ayudantia, onExit }) {
 
   const handleSelectAnswer = (index) => {
     if (isAnswerRevealed) return;
+    if (isShortAnswer(currentQuestion)) {
+      setSelectedOptionIndex(index);
+      return;
+    }
+    if (isOrdering(currentQuestion)) {
+      setOrderingOrder(index);
+      return;
+    }
     if (isMultipleSelect(currentQuestion)) {
       setSelectedOptionIndex((previous) => {
         const selected = Array.isArray(previous) ? previous : [];
@@ -256,9 +270,12 @@ export default function SoloScreen({ ayudantia, onExit }) {
         question={currentQuestion}
         currentIndex={currentIndex}
         totalQuestions={questions.length}
-        selectedAnswerIndex={selectedOptionIndex}
+        selectedAnswerIndex={isOrdering(currentQuestion) ? orderingOrder : selectedOptionIndex}
         onSelectAnswer={handleSelectAnswer}
-        onSubmitAnswer={isMultipleSelect(currentQuestion) ? () => handleSubmitAnswer() : null}
+        onReorderAnswer={isOrdering(currentQuestion) ? setOrderingOrder : null}
+        onSubmitAnswer={isMultipleSelect(currentQuestion) || isShortAnswer(currentQuestion) || isOrdering(currentQuestion)
+          ? () => handleSubmitAnswer()
+          : null}
         isRevealed={isAnswerRevealed}
         showExplanation={isAnswerRevealed}
       />

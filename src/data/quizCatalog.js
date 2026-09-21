@@ -73,23 +73,39 @@ export function createQuiz({ subjectId, title, description = "", questions }) {
   const cleanQuestions = questions.map((question) => ({
     ...question,
     prompt: question.prompt.trim(),
-    options: question.options.map((option) => option.trim()),
+    options: (question.options || []).map((option) => option.trim()),
     correctOptions: (question.correctOptions || []).map(Number),
+    acceptedAnswers: (Array.isArray(question.acceptedAnswers)
+      ? question.acceptedAnswers
+      : String(question.acceptedAnswers || "").split(/\r?\n/)
+    ).map((answer) => answer.trim()).filter(Boolean),
   }));
 
-  if (
-    !subjectId ||
-    !cleanTitle ||
-    cleanQuestions.length === 0 ||
-    cleanQuestions.some(
-      (question) =>
-        !question.prompt ||
-        question.options.length < 2 ||
-        question.options.some((option) => !option) ||
-        (question.type === "multiple_select" && question.correctOptions.length === 0)
-    )
-  ) {
-    throw new Error("Completa el nombre del quiz, cada pregunta y todas sus alternativas.");
+  const invalidQuestion = cleanQuestions.find((question) => {
+    if (!question.prompt) return true;
+    if (question.type === "short_answer") return question.acceptedAnswers.length === 0;
+    if (question.type === "ordering") {
+      return question.options.length < 2 || question.options.some((option) => !option);
+    }
+    return question.options.length < 2 || question.options.some((option) => !option) ||
+      (question.type === "multiple_select" && question.correctOptions.length === 0);
+  });
+
+  if (!subjectId || !cleanTitle || cleanQuestions.length === 0) {
+    throw new Error("Completa el título del quiz y agrega al menos una pregunta.");
+  }
+  if (invalidQuestion) {
+    if (!invalidQuestion.prompt) throw new Error("Escribe el enunciado de cada pregunta.");
+    if (invalidQuestion.type === "short_answer") {
+      throw new Error("Agrega al menos una respuesta aceptada en cada pregunta corta.");
+    }
+    if (invalidQuestion.type === "ordering") {
+      throw new Error("Completa al menos dos elementos para ordenar.");
+    }
+    if (invalidQuestion.type === "multiple_select" && invalidQuestion.correctOptions.length === 0) {
+      throw new Error("Marca al menos una alternativa correcta en cada pregunta de selección múltiple.");
+    }
+    throw new Error("Completa todas las alternativas de cada pregunta.");
   }
 
   return {
@@ -110,10 +126,15 @@ export function createQuiz({ subjectId, title, description = "", questions }) {
       topic: question.topic?.trim() || "General",
       q: question.prompt,
       opts: question.options,
+      image: question.imageUrl || question.image || question.imageData || "",
       ans:
-        question.type === "multiple_select"
-          ? question.correctOptions.sort((a, b) => a - b)
-          : Number(question.correctOption),
+        question.type === "short_answer"
+          ? question.acceptedAnswers
+          : question.type === "ordering"
+            ? question.options.map((_, index) => index)
+            : question.type === "multiple_select"
+              ? question.correctOptions.sort((a, b) => a - b)
+              : Number(question.correctOption),
       exp: question.explanation?.trim() || "",
     })),
   };

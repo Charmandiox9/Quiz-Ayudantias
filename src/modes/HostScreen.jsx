@@ -10,7 +10,7 @@ import QuestionCard from "../components/quiz/QuestionCard";
 import VoteBars from "../components/quiz/VoteBars";
 import Leaderboard from "../components/quiz/Leaderboard";
 import TimerRing from "../components/quiz/TimerRing";
-import { answerLabels, isAnswerCorrect, responseToOptionIndices } from "../utils/answers";
+import { answerLabels, formatAnswerText, isAnswerCorrect, isOrdering, isShortAnswer, responseToOptionIndices, shuffleIndices } from "../utils/answers";
 import { getAppUrl } from "../utils/appUrl";
 import {
   ArrowLeft,
@@ -28,6 +28,26 @@ import {
   VolumeX,
 } from "lucide-react";
 
+function createLiveQuestionPayload(question, questionIndex, totalQuestions, optionOrder = []) {
+  const resolvedOrder = optionOrder.length
+    ? optionOrder
+    : (question.opts || []).map((_, index) => index);
+  return {
+    questionIndex,
+    totalQuestions,
+    answerType: question.type || "single_choice",
+    prompt: question.q || "",
+    image: question.image || "",
+    optionTexts: question.opts || [],
+    optionOrder: resolvedOrder,
+  };
+}
+
+function getQuestionOrder(question) {
+  const length = question.opts?.length || 0;
+  return isOrdering(question) ? shuffleIndices(length) : Array.from({ length }, (_, index) => index);
+}
+
 export default function HostScreen({ ayudantia, roomCode, onExit }) {
   const [phase, setPhase] = useState(GAME_PHASES.LOBBY);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -42,16 +62,12 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
   const serviceRef = useRef(null);
   const playersRef = useRef([]);
   const currentQuestionRef = useRef(ayudantia.questions[0]);
+  const optionOrderRef = useRef([]);
   const gameStateRef = useRef({ phase: GAME_PHASES.LOBBY, index: 0 });
   const questionStartTimeRef = useRef(0);
 
   const currentQuestion = ayudantia.questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === ayudantia.questions.length - 1;
-  const currentQuestionMeta = {
-    answerType: currentQuestion.type || "single_choice",
-    optionTexts: currentQuestion.opts || [],
-  };
-
   useEffect(() => {
     playersRef.current = players;
   }, [players]);
@@ -149,11 +165,13 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
           if (serviceRef.current) {
             const currentQ = currentQuestionRef.current;
             serviceRef.current.broadcastState({
+              ...createLiveQuestionPayload(
+                currentQ,
+                gameStateRef.current.index,
+                ayudantia.questions.length,
+                optionOrderRef.current
+              ),
               phase: gameStateRef.current.phase,
-              questionIndex: gameStateRef.current.index,
-              totalQuestions: ayudantia.questions.length,
-              answerType: currentQ.type || "single_choice",
-              optionTexts: currentQ.opts || [],
               correctAnswerIndex:
                 gameStateRef.current.phase === GAME_PHASES.REVEAL ? currentQ.ans : null,
               players: playersRef.current,
@@ -187,10 +205,12 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
         const selectedIndices = responseToOptionIndices(currentQ, response);
         const selectedLabels = answerLabels(selectedIndices);
         setResponseCount((prev) => prev + 1);
-        setVotes((prev) => selectedLabels.reduce(
-          (next, label) => ({ ...next, [label]: (next[label] || 0) + 1 }),
-          prev
-        ));
+        if (!isShortAnswer(currentQ) && !isOrdering(currentQ)) {
+          setVotes((prev) => selectedLabels.reduce(
+            (next, label) => ({ ...next, [label]: (next[label] || 0) + 1 }),
+            prev
+          ));
+        }
 
         const isCorrect = isAnswerCorrect(currentQ, response);
 
@@ -212,7 +232,11 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
                 ...p,
                 score: p.score + pointsEarned,
                 lastEarnedPoints: pointsEarned,
-                lastOption: selectedLabels.join(", "),
+                lastOption: isShortAnswer(currentQ)
+                  ? String(response || "").slice(0, 100)
+                  : isOrdering(currentQ)
+                    ? formatAnswerText(currentQ, response)
+                    : selectedLabels.join(", "),
               };
             }
             return p;
@@ -230,6 +254,8 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
   }, [roomCode, ayudantia.questions.length, ayudantia.defaultTimerSeconds]);
 
   const handleStartGame = () => {
+    const optionOrder = getQuestionOrder(currentQuestion);
+    optionOrderRef.current = optionOrder;
     setCurrentQuestionIndex(0);
     setVotes({});
     setResponseCount(0);
@@ -240,10 +266,8 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
 
     if (serviceRef.current) {
       serviceRef.current.broadcastNext({
-        questionIndex: 0,
-        totalQuestions: ayudantia.questions.length,
         timerSeconds: ayudantia.defaultTimerSeconds || 60,
-        ...currentQuestionMeta,
+        ...createLiveQuestionPayload(currentQuestion, 0, ayudantia.questions.length, optionOrder),
       });
     }
   };
@@ -286,6 +310,9 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
     }
 
     const nextIndex = currentQuestionIndex + 1;
+    const nextQuestion = ayudantia.questions[nextIndex];
+    const optionOrder = getQuestionOrder(nextQuestion);
+    optionOrderRef.current = optionOrder;
     setCurrentQuestionIndex(nextIndex);
     setVotes({});
     setResponseCount(0);
@@ -296,11 +323,8 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
 
     if (serviceRef.current) {
       serviceRef.current.broadcastNext({
-        questionIndex: nextIndex,
-        totalQuestions: ayudantia.questions.length,
         timerSeconds: ayudantia.defaultTimerSeconds || 60,
-        answerType: ayudantia.questions[nextIndex].type || "single_choice",
-        optionTexts: ayudantia.questions[nextIndex].opts || [],
+        ...createLiveQuestionPayload(nextQuestion, nextIndex, ayudantia.questions.length, optionOrder),
       });
     }
   };
@@ -589,9 +613,11 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
               showExplanation={false}
             />
 
-            <Card title="Distribucion de Respuestas" subtitle="Votos emitidos por los estudiantes en la sala" style={{ marginTop: "24px", maxWidth: "980px", margin: "24px auto 0" }}>
-              <VoteBars votes={votes} totalVotes={totalVotesCount} optionsCount={currentQuestion.opts?.length || 4} />
-            </Card>
+            {!isShortAnswer(currentQuestion) && !isOrdering(currentQuestion) && (
+              <Card title="Distribucion de Respuestas" subtitle="Votos emitidos por los estudiantes en la sala" style={{ marginTop: "24px", maxWidth: "980px", margin: "24px auto 0" }}>
+                <VoteBars votes={votes} totalVotes={totalVotesCount} optionsCount={currentQuestion.opts?.length || 4} />
+              </Card>
+            )}
 
             <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end" }}>
               <Button variant="primary" icon={Eye} onClick={handleRevealAnswer}>
@@ -621,15 +647,17 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
               showExplanation={true}
             />
 
-            <Card title="Distribucion de Respuestas" subtitle="La barra verde senala la opcion correcta" style={{ marginTop: "24px", maxWidth: "980px", margin: "24px auto 0" }}>
-              <VoteBars
-                votes={votes}
-                totalVotes={totalVotesCount}
-                correctAnswerIndex={currentQuestion.ans}
-                isRevealed={true}
-                optionsCount={currentQuestion.opts?.length || 4}
-              />
-            </Card>
+            {!isShortAnswer(currentQuestion) && !isOrdering(currentQuestion) && (
+              <Card title="Distribucion de Respuestas" subtitle="La barra verde senala la opcion correcta" style={{ marginTop: "24px", maxWidth: "980px", margin: "24px auto 0" }}>
+                <VoteBars
+                  votes={votes}
+                  totalVotes={totalVotesCount}
+                  correctAnswerIndex={currentQuestion.ans}
+                  isRevealed={true}
+                  optionsCount={currentQuestion.opts?.length || 4}
+                />
+              </Card>
+            )}
 
             <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end" }}>
               <Button variant="primary" icon={ArrowRight} onClick={handleShowLeaderboard}>
