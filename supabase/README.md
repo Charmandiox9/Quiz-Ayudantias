@@ -27,13 +27,13 @@ El editor admite selección única/múltiple, verdadero/falso, respuesta corta c
 1. Crea un bucket R2 de clase **Standard** y habilita acceso público de lectura usando un dominio personalizado (por ejemplo, `images.tudominio.cl`). Configura ese dominio como `R2_PUBLIC_BASE_URL`; las imágenes de preguntas serán accesibles a cualquier persona que tenga el enlace.
 2. Crea un token de API de R2 limitado al bucket, con permiso de lectura/escritura de objetos. En Vercel agrega `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` y `R2_PUBLIC_BASE_URL`. No agregues `VITE_` a estas claves.
 3. En Vercel agrega también `SUPABASE_URL` y `SUPABASE_ANON_KEY` con los mismos valores que sus variables `VITE_` correspondientes. La función `/api/images/upload-url` valida el token de sesión y consulta `teacher_access` antes de emitir una URL temporal de carga.
-4. En la configuración CORS del bucket permite el origen exacto de producción y el origen local, método `PUT`, y cabecera `Content-Type`. Ejemplo:
+4. En la configuración CORS del bucket permite el origen exacto de producción y el origen local, métodos `GET` y `PUT`, y cabecera `Content-Type`. `PUT` se usa para subir imágenes y `GET` para leerlas al mostrar o descargar las tarjetas. Ejemplo:
 
    ```json
    [
      {
        "AllowedOrigins": ["https://quiz-ayudantias.vercel.app", "http://localhost:5173"],
-       "AllowedMethods": ["PUT"],
+       "AllowedMethods": ["GET", "PUT"],
        "AllowedHeaders": ["Content-Type"],
        "ExposeHeaders": ["ETag"],
        "MaxAgeSeconds": 3600

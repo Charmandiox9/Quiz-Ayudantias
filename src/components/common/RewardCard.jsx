@@ -342,7 +342,7 @@ export default function RewardCard({
       sileo.error({
         title: "No se pudo descargar la carta",
         description: error instanceof Error
-          ? `${error.message} Si el diseño está en R2, revisa que el bucket permita solicitudes CORS desde este sitio.`
+          ? `${error.message} Si el diseño está en R2, permite GET y PUT en Allowed Methods y verifica que este dominio esté en Allowed Origins.`
           : "Revisa la conexión e inténtalo nuevamente.",
       });
     } finally {
