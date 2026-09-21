@@ -35,6 +35,7 @@ export default function RewardCard({
   accuracy = 100,
   score = 16000,
   mascotSrc = "/assets/ay03_solid.png",
+  sealLogoSrc = "/assets/seal_logo.jpg",
   onRestart = null,
   onExit = null,
 }) {
@@ -477,7 +478,7 @@ export default function RewardCard({
               >
                 {!sealLogoError ? (
                   <img
-                    src="/assets/seal_logo.png"
+                    src={sealLogoSrc}
                     alt="Sello Oficial de Cera"
                     onError={() => setSealLogoError(true)}
                     style={{
@@ -736,6 +737,13 @@ export default function RewardCard({
                     <Award size={64} color="#FBBF24" />
                     <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#FFFFFF" }}>{title}</h3>
                     <p style={{ fontSize: "13px", color: "#94A3B8" }}>{subtitle}</p>
+                  </div>
+                )}
+
+                {!imageError && (
+                  <div style={{ position: "absolute", left: "5%", right: "5%", bottom: "4%", zIndex: 2, padding: "12px 14px", borderRadius: 12, background: "linear-gradient(135deg, rgb(15 23 42 / 92%), rgb(30 39 97 / 88%))", border: "1px solid rgb(252 211 77 / 72%)", boxShadow: "0 5px 18px rgb(0 0 0 / 35%)", textAlign: "center", pointerEvents: "none" }}>
+                    <h3 style={{ margin: 0, color: "#FFFFFF", fontSize: "clamp(13px, 2.1vw, 19px)", lineHeight: 1.2, fontWeight: 900, textShadow: "0 1px 4px #000" }}>{title}</h3>
+                    <p style={{ margin: "5px 0 0", color: "#FDE68A", fontSize: "clamp(10px, 1.45vw, 13px)", lineHeight: 1.25, fontWeight: 700 }}>{subtitle}</p>
                   </div>
                 )}
 

@@ -65,6 +65,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
   const optionOrderRef = useRef([]);
   const gameStateRef = useRef({ phase: GAME_PHASES.LOBBY, index: 0 });
   const questionStartTimeRef = useRef(0);
+  const answeredPlayersRef = useRef(new Set());
 
   const currentQuestion = ayudantia.questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === ayudantia.questions.length - 1;
@@ -141,6 +142,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
                 name: item.name,
                 score: item.score || 0,
                 lastEarnedPoints: 0,
+                correctAnswersCount: 0,
               });
               updated = true;
             } else if (item.id && existing.id !== item.id) {
@@ -195,11 +197,16 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
               name: player.name,
               score: 0,
               lastEarnedPoints: 0,
+              correctAnswersCount: 0,
             },
           ];
         });
       },
       onPlayerVote: ({ playerName, optionLabel, answer, playerId }) => {
+        if (gameStateRef.current.phase !== GAME_PHASES.QUESTION) return;
+        const voterKey = playerId || String(playerName || "").toLowerCase();
+        if (!voterKey || answeredPlayersRef.current.has(voterKey)) return;
+        answeredPlayersRef.current.add(voterKey);
         const currentQ = currentQuestionRef.current;
         const response = answer ?? optionLabel;
         const selectedIndices = responseToOptionIndices(currentQ, response);
@@ -224,14 +231,14 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
           pointsEarned = Math.round(500 + 500 * remainingFraction);
         }
 
-        setPlayers((prev) => {
-          const updated = prev.map((p) => {
+        const updated = playersRef.current.map((p) => {
             const isMatch = (playerId && p.id === playerId) || (p.name.toLowerCase() === playerName.toLowerCase());
             if (isMatch) {
               return {
                 ...p,
                 score: p.score + pointsEarned,
                 lastEarnedPoints: pointsEarned,
+                correctAnswersCount: (p.correctAnswersCount || 0) + (isCorrect ? 1 : 0),
                 lastOption: isShortAnswer(currentQ)
                   ? String(response || "").slice(0, 100)
                   : isOrdering(currentQ)
@@ -240,10 +247,9 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
               };
             }
             return p;
-          });
-          playersRef.current = updated;
-          return updated;
         });
+        playersRef.current = updated;
+        setPlayers(updated);
       },
     });
 
@@ -254,6 +260,12 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
   }, [roomCode, ayudantia.questions.length, ayudantia.defaultTimerSeconds]);
 
   const handleStartGame = () => {
+    answeredPlayersRef.current.clear();
+    setPlayers((previous) => {
+      const reset = previous.map((player) => ({ ...player, score: 0, lastEarnedPoints: 0, correctAnswersCount: 0 }));
+      playersRef.current = reset;
+      return reset;
+    });
     const optionOrder = getQuestionOrder(currentQuestion);
     optionOrderRef.current = optionOrder;
     setCurrentQuestionIndex(0);
@@ -301,9 +313,18 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
     if (isLastQuestion) {
       audioService.stopMusic();
       setPhase(GAME_PHASES.FINISHED);
+      const perfectPlayers = playersRef.current.filter((player) => player.correctAnswersCount === ayudantia.questions.length);
       if (serviceRef.current) {
         serviceRef.current.broadcastEnd({
           players: playersRef.current,
+          perfectPlayerIds: perfectPlayers.map((player) => player.id),
+          rewardCard: {
+            title: ayudantia.cardTitle || ayudantia.title,
+            subtitle: ayudantia.cardSubtitle || ayudantia.description || "Tarjeta de logro desbloqueada",
+            image: ayudantia.cardImage || ayudantia.cardImageLegacy || "/assets/mascot.png",
+            sealLogoSrc: ayudantia.sealLogoUrl || "/assets/seal_logo.jpg",
+            quizTitle: ayudantia.title,
+          },
         });
       }
       return;
@@ -311,6 +332,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
 
     const nextIndex = currentQuestionIndex + 1;
     const nextQuestion = ayudantia.questions[nextIndex];
+    answeredPlayersRef.current.clear();
     const optionOrder = getQuestionOrder(nextQuestion);
     optionOrderRef.current = optionOrder;
     setCurrentQuestionIndex(nextIndex);
@@ -336,6 +358,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
   };
 
   const totalVotesCount = Object.values(votes).reduce((sum, v) => sum + v, 0);
+  const perfectPlayers = players.filter((player) => player.correctAnswersCount === ayudantia.questions.length);
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "var(--color-bg)", padding: "24px 20px" }}>
@@ -695,6 +718,20 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
               <p style={{ color: "var(--color-text-secondary)", fontSize: "18px" }}>
                 Felicitaciones a todos los participantes de la ayudantia.
               </p>
+            </Card>
+
+            <Card
+              title={`Logro perfecto · ${perfectPlayers.length}`}
+              subtitle={`Participantes con ${ayudantia.questions.length} de ${ayudantia.questions.length} respuestas correctas`}
+              style={{ maxWidth: "860px", margin: "0 auto 28px" }}
+            >
+              {perfectPlayers.length ? (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                  {perfectPlayers.map((player) => <Badge key={player.id} variant="success" icon={Trophy}>{player.name}</Badge>)}
+                </div>
+              ) : (
+                <p style={{ margin: 0, color: "var(--color-text-secondary)" }}>Nadie obtuvo todas las respuestas correctas esta vez. ¡A intentarlo de nuevo!</p>
+              )}
             </Card>
 
             <Card title="Podio Final y Clasificacion" subtitle="Resultados definitivos de la sesion" style={{ maxWidth: "860px", margin: "0 auto" }}>

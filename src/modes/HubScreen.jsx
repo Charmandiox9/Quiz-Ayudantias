@@ -16,7 +16,7 @@ import Button from "../components/common/Button";
 import Badge from "../components/common/Badge";
 import PrivacyNotice from "../components/common/PrivacyNotice";
 import { sanitizeNickname, sanitizeRoomCode, generateAnonymousAlias } from "../utils/sanitizers";
-import { uploadQuestionImage } from "../utils/questionImages";
+import { uploadImageToR2 } from "../utils/questionImages";
 import {
   ArrowDown,
   ArrowUp,
@@ -30,6 +30,7 @@ import {
   Smartphone,
   Upload,
   ImagePlus,
+  Pencil,
   X,
 } from "lucide-react";
 
@@ -44,6 +45,7 @@ const newQuestion = () => ({
   imageUrl: "",
   explanation: "",
 });
+const emptyQuizForm = () => ({ title: "", description: "", cardTitle: "", cardSubtitle: "", cardImage: "", questions: [newQuestion()] });
 
 const fieldStyle = {
   width: "100%",
@@ -118,14 +120,17 @@ export default function HubScreen({
   const [selectedSubjectId, setSelectedSubjectId] = useState(catalog.subjects[0]?.id || "");
   const [modal, setModal] = useState(null);
   const [formError, setFormError] = useState("");
-  const [subjectForm, setSubjectForm] = useState({ name: "", code: "", description: "" });
-  const [quizForm, setQuizForm] = useState({ title: "", description: "", questions: [newQuestion()] });
+  const [subjectForm, setSubjectForm] = useState({ name: "", code: "", description: "", sealLogoUrl: "" });
+  const [quizForm, setQuizForm] = useState(emptyQuizForm);
   const [nickname, setNickname] = useState(() => (initialRoomCode ? generateAnonymousAlias() : ""));
   const [roomCode, setRoomCode] = useState(initialRoomCode);
   const [joinError, setJoinError] = useState("");
   const [pageError, setPageError] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadingImageIndex, setUploadingImageIndex] = useState(null);
+  const [uploadingSubjectSeal, setUploadingSubjectSeal] = useState(false);
+  const [uploadingCardImage, setUploadingCardImage] = useState(false);
+  const [editingSubjectId, setEditingSubjectId] = useState(null);
 
   const selectedSubject = useMemo(
     () => catalog.subjects.find((subject) => subject.id === selectedSubjectId) || catalog.subjects[0],
@@ -146,18 +151,49 @@ export default function HubScreen({
     }
   };
 
-  const handleCreateSubject = async (event) => {
+  const handleSaveSubject = async (event) => {
     event.preventDefault();
     setFormError("");
     try {
-      const subject = createSubject(subjectForm);
-      const nextCatalog = addSubject(catalog, subject);
+      if (!subjectForm.name.trim()) throw new Error("La asignatura necesita un nombre.");
+      const nextCatalog = editingSubjectId
+        ? {
+            ...catalog,
+            subjects: catalog.subjects.map((subject) => subject.id === editingSubjectId
+              ? { ...subject, ...subjectForm, code: subjectForm.code.trim().toUpperCase(), name: subjectForm.name.trim(), description: subjectForm.description.trim() }
+              : subject),
+          }
+        : addSubject(catalog, createSubject(subjectForm));
       await commitCatalog(nextCatalog);
-      setSelectedSubjectId(subject.id);
-      setSubjectForm({ name: "", code: "", description: "" });
+      if (!editingSubjectId) setSelectedSubjectId(nextCatalog.subjects.at(-1).id);
+      setSubjectForm({ name: "", code: "", description: "", sealLogoUrl: "" });
+      setEditingSubjectId(null);
       setModal(null);
     } catch (error) {
       setFormError(error.message);
+    }
+  };
+
+  const openSubjectEditor = (subject = null) => {
+    setFormError("");
+    setEditingSubjectId(subject?.id || null);
+    setSubjectForm(subject
+      ? { name: subject.name, code: subject.code || "", description: subject.description || "", sealLogoUrl: subject.sealLogoUrl || "" }
+      : { name: "", code: "", description: "", sealLogoUrl: "" });
+    setModal("subject");
+  };
+
+  const handleSubjectSealUpload = async (file) => {
+    if (!file) return;
+    setFormError("");
+    setUploadingSubjectSeal(true);
+    try {
+      const sealLogoUrl = await uploadImageToR2(file, "subject-seal");
+      setSubjectForm((current) => ({ ...current, sealLogoUrl }));
+    } catch (error) {
+      setFormError(error.message || "No se pudo cargar el estampado.");
+    } finally {
+      setUploadingSubjectSeal(false);
     }
   };
 
@@ -167,7 +203,7 @@ export default function HubScreen({
     try {
       const quiz = createQuiz({ ...quizForm, subjectId: selectedSubject.id });
       await commitCatalog(addQuiz(catalog, selectedSubject.id, quiz));
-      setQuizForm({ title: "", description: "", questions: [newQuestion()] });
+      setQuizForm(emptyQuizForm());
       setModal(null);
     } catch (error) {
       setFormError(error.message);
@@ -210,12 +246,12 @@ export default function HubScreen({
 
   const startHost = (quiz) => {
     const roomCode = `Q${crypto.randomUUID().replaceAll("-", "").slice(0, 7).toUpperCase()}`;
-    onStartHost({ ayudantia: quiz, roomCode });
+    onStartHost({ ayudantia: { ...quiz, sealLogoUrl: selectedSubject.sealLogoUrl || "" }, roomCode });
   };
 
   const openQuizCreator = () => {
     setFormError("");
-    setQuizForm({ title: "", description: "", questions: [newQuestion()] });
+    setQuizForm(emptyQuizForm());
     setModal("quiz");
   };
 
@@ -249,12 +285,26 @@ export default function HubScreen({
     setFormError("");
     setUploadingImageIndex(questionIndex);
     try {
-      const imageUrl = await uploadQuestionImage(file);
+      const imageUrl = await uploadImageToR2(file);
       updateQuestion(questionIndex, "imageUrl", imageUrl);
     } catch (error) {
       setFormError(error.message || "No se pudo cargar la imagen.");
     } finally {
       setUploadingImageIndex(null);
+    }
+  };
+
+  const handleCardImageUpload = async (file) => {
+    if (!file) return;
+    setFormError("");
+    setUploadingCardImage(true);
+    try {
+      const cardImage = await uploadImageToR2(file, "quiz-card");
+      setQuizForm((current) => ({ ...current, cardImage }));
+    } catch (error) {
+      setFormError(error.message || "No se pudo cargar la imagen de la tarjeta.");
+    } finally {
+      setUploadingCardImage(false);
     }
   };
 
@@ -306,7 +356,7 @@ export default function HubScreen({
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             {teacherEmail && <span style={{ color: "#64748B", fontSize: 12 }}>{teacherEmail}</span>}
             {onSignOut && <Button variant="secondary" size="sm" onClick={onSignOut}>Cerrar sesión</Button>}
-            <Button variant="primary" icon={CirclePlus} disabled={saving} onClick={() => { setFormError(""); setModal("subject"); }}>
+            <Button variant="primary" icon={CirclePlus} disabled={saving} onClick={() => openSubjectEditor()}>
               Nueva asignatura
             </Button>
           </div>
@@ -355,7 +405,10 @@ export default function HubScreen({
                     <h2 style={{ color: "#0F172A", fontSize: 23, margin: 0 }}>{selectedSubject.name}</h2>
                     {selectedSubject.description && <p style={{ color: "#64748B", margin: "5px 0 0" }}>{selectedSubject.description}</p>}
                   </div>
-                  <Button variant="accent" icon={Plus} onClick={openQuizCreator}>Crear quiz</Button>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <Button variant="outline" size="sm" icon={Pencil} disabled={saving} onClick={() => openSubjectEditor(selectedSubject)}>Editar asignatura</Button>
+                    <Button variant="accent" icon={Plus} onClick={openQuizCreator}>Crear quiz</Button>
+                  </div>
                 </div>
 
                 <div style={{ display: "grid", gap: 12 }}>
@@ -382,7 +435,7 @@ export default function HubScreen({
                           ) : (
                             <>
                               <Button size="sm" variant="primary" icon={Monitor} onClick={() => startHost(quiz)}>Hostear</Button>
-                              <Button size="sm" variant="secondary" icon={BookOpen} onClick={() => onStartSolo({ ayudantia: quiz })}>Practicar</Button>
+                              <Button size="sm" variant="secondary" icon={BookOpen} onClick={() => onStartSolo({ ayudantia: { ...quiz, sealLogoUrl: selectedSubject.sealLogoUrl || "" } })}>Practicar</Button>
                               <Button size="sm" variant="outline" icon={Archive} disabled={saving} onClick={() => handleQuizStatusChange(quiz.id, "archive")}>Archivar</Button>
                             </>
                           )}
@@ -428,8 +481,8 @@ export default function HubScreen({
       </div>
 
       {modal === "subject" && (
-        <Modal title="Nueva asignatura" onClose={() => setModal(null)}>
-          <form onSubmit={handleCreateSubject} style={{ display: "grid", gap: 14 }}>
+        <Modal title={editingSubjectId ? "Editar asignatura" : "Nueva asignatura"} onClose={() => setModal(null)}>
+          <form onSubmit={handleSaveSubject} style={{ display: "grid", gap: 14 }}>
             <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Nombre *
               <input autoFocus required value={subjectForm.name} onChange={(event) => setSubjectForm({ ...subjectForm, name: event.target.value })} placeholder="Ej. Ingeniería de Software" style={{ ...fieldStyle, marginTop: 5 }} />
             </label>
@@ -439,10 +492,25 @@ export default function HubScreen({
             <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Descripción (opcional)
               <textarea value={subjectForm.description} onChange={(event) => setSubjectForm({ ...subjectForm, description: event.target.value })} rows={3} style={{ ...fieldStyle, marginTop: 5, resize: "vertical" }} />
             </label>
+            <fieldset style={{ border: "1px solid #CBD5E1", borderRadius: 12, padding: 14, display: "grid", gap: 10 }}>
+              <legend style={{ padding: "0 7px", color: "#1E2761", fontWeight: 800 }}>Estampado de las tarjetas de logro</legend>
+              <p style={{ margin: 0, color: "#64748B", fontSize: 12, lineHeight: 1.5 }}>Se usará en las tarjetas de logro de todos los quizzes de esta asignatura. Sube una imagen con fondo transparente para mejores resultados.</p>
+              {subjectForm.sealLogoUrl && (
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ width: 76, height: 76, display: "grid", placeItems: "center", borderRadius: "50%", background: "radial-gradient(circle at 30% 25%, #C83E36, #7F1D1D 72%)", border: "3px solid #FCD34D", boxShadow: "0 5px 14px #7F1D1D33" }}>
+                    <img src={subjectForm.sealLogoUrl} alt="Vista previa del estampado" style={{ width: 46, height: 46, objectFit: "contain" }} />
+                  </div>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setSubjectForm((current) => ({ ...current, sealLogoUrl: "" }))}>Usar sello predeterminado</Button>
+                </div>
+              )}
+              <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>{uploadingSubjectSeal ? "Subiendo estampado…" : subjectForm.sealLogoUrl ? "Reemplazar estampado" : "Subir estampado personalizado"}
+                <input type="file" accept="image/*" disabled={uploadingSubjectSeal} onChange={(event) => { handleSubjectSealUpload(event.target.files?.[0]); event.target.value = ""; }} style={{ display: "block", maxWidth: "100%", marginTop: 5, fontSize: 12, fontWeight: 400 }} aria-label="Subir estampado para esta asignatura" />
+              </label>
+            </fieldset>
             {formError && <p role="alert" style={{ color: "#B91C1C", margin: 0 }}>{formError}</p>}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 9 }}>
               <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>
-              <Button type="submit" icon={Check} disabled={saving}>{saving ? "Guardando…" : "Crear asignatura"}</Button>
+              <Button type="submit" icon={Check} disabled={saving || uploadingSubjectSeal}>{saving ? "Guardando…" : editingSubjectId ? "Guardar cambios" : "Crear asignatura"}</Button>
             </div>
           </form>
         </Modal>
@@ -457,6 +525,25 @@ export default function HubScreen({
             <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Descripción
               <textarea value={quizForm.description} onChange={(event) => setQuizForm({ ...quizForm, description: event.target.value })} rows={2} style={{ ...fieldStyle, marginTop: 5, resize: "vertical" }} />
             </label>
+
+            <fieldset style={{ border: "1px solid #CBD5E1", borderRadius: 12, padding: 15, display: "grid", gap: 12, background: "#F8FAFC" }}>
+              <legend style={{ padding: "0 7px", color: "#1E2761", fontWeight: 800 }}>Tarjeta de logro del quiz</legend>
+              <p style={{ margin: 0, color: "#64748B", fontSize: 12 }}>Esta tarjeta se desbloquea al responder correctamente todas las preguntas. Si dejas los textos vacíos, usaremos el título y la descripción del quiz.</p>
+              <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Título de la tarjeta
+                <input value={quizForm.cardTitle} onChange={(event) => setQuizForm({ ...quizForm, cardTitle: event.target.value })} placeholder={quizForm.title || "Ej. Maestría en Arquitectura de Software"} style={{ ...fieldStyle, marginTop: 5 }} />
+              </label>
+              <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Subtítulo
+                <input value={quizForm.cardSubtitle} onChange={(event) => setQuizForm({ ...quizForm, cardSubtitle: event.target.value })} placeholder={quizForm.description || "Tarjeta de logro desbloqueada"} style={{ ...fieldStyle, marginTop: 5 }} />
+              </label>
+              {quizForm.cardImage && <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <img src={quizForm.cardImage} alt="Vista previa de la tarjeta" style={{ width: 92, height: 122, objectFit: "cover", borderRadius: 9, border: "1px solid #CBD5E1" }} />
+                <Button type="button" size="sm" variant="outline" onClick={() => setQuizForm((current) => ({ ...current, cardImage: "" }))}>Quitar imagen</Button>
+              </div>}
+              <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>{uploadingCardImage ? "Subiendo imagen a R2…" : quizForm.cardImage ? "Reemplazar imagen de tarjeta" : "Diseño de la tarjeta (opcional)"}
+                <input type="file" accept="image/*" disabled={uploadingCardImage} onChange={(event) => { handleCardImageUpload(event.target.files?.[0]); event.target.value = ""; }} style={{ display: "block", maxWidth: "100%", marginTop: 5, fontSize: 12, fontWeight: 400 }} aria-label="Cargar diseño de la tarjeta de logro" />
+              </label>
+              <span style={{ color: "#64748B", fontSize: 11 }}>Puedes personalizar cada quiz con una imagen propia; si no subes una, se usará el arte predeterminado.</span>
+            </fieldset>
 
             {quizForm.questions.map((question, questionIndex) => (
               <fieldset key={questionIndex} style={{ border: "1px solid #CBD5E1", borderRadius: 12, padding: 15, display: "grid", gap: 12 }}>
@@ -559,7 +646,7 @@ export default function HubScreen({
             {formError && <p role="alert" style={{ color: "#B91C1C", margin: 0 }}>{formError}</p>}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 9 }}>
               <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>
-              <Button type="submit" icon={Check} disabled={saving}>{saving ? "Guardando…" : "Guardar borrador"}</Button>
+              <Button type="submit" icon={Check} disabled={saving || uploadingCardImage}>{saving ? "Guardando…" : "Guardar borrador"}</Button>
             </div>
           </form>
         </Modal>

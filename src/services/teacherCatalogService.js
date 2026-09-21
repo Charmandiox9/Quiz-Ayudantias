@@ -32,6 +32,7 @@ export async function loadTeacherCatalog(userId) {
       name: subject.name,
       code: subject.code || "",
       description: subject.description || "",
+      sealLogoUrl: subject.seal_logo_url || "",
       quizzes: (quizzes || [])
         .filter((quiz) => quiz.subject_id === subject.id)
         .map((quiz) => ({
@@ -57,6 +58,7 @@ export async function saveTeacherCatalog(catalog, userId) {
     name: subject.name,
     code: subject.code || "",
     description: subject.description || "",
+    seal_logo_url: subject.sealLogoUrl || null,
   }));
 
   if (subjects.length) {
@@ -78,6 +80,9 @@ export async function saveTeacherCatalog(catalog, userId) {
       course: quiz.course || "",
       defaultTimerSeconds: quiz.defaultTimerSeconds || 60,
       pointsPerQuestion: quiz.pointsPerQuestion || 1000,
+      cardTitle: quiz.cardTitle || "",
+      cardSubtitle: quiz.cardSubtitle || "",
+      cardImage: quiz.cardImage || "",
       version: quiz.version || 1,
     },
   })));

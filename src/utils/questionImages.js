@@ -48,7 +48,10 @@ async function compressQuestionImage(file) {
   return compressed;
 }
 
-export async function uploadQuestionImage(file) {
+export async function uploadImageToR2(file, assetType = "question") {
+  if (!["question", "subject-seal", "quiz-card"].includes(assetType)) {
+    throw new Error("Tipo de imagen no permitido.");
+  }
   if (!supabase) throw new Error("Supabase debe estar configurado para cargar imágenes.");
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
   if (sessionError || !session?.access_token) {
@@ -62,7 +65,7 @@ export async function uploadQuestionImage(file) {
       "Content-Type": "application/json",
       Authorization: `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ contentType: image.type, size: image.size }),
+    body: JSON.stringify({ contentType: image.type, size: image.size, assetType }),
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) {

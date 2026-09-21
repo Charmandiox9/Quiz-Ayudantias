@@ -195,11 +195,12 @@ export default function SoloScreen({ ayudantia, onExit }) {
         {incorrectAnswers.length === 0 ? (
           <div style={{ marginBottom: "32px" }}>
             <RewardCard
-              title={ayudantia.title}
-              subtitle={`Carta de Logro Coleccionable — ${ayudantia.course || "Ingenieria de Software"}`}
+              title={ayudantia.cardTitle || ayudantia.title}
+              subtitle={ayudantia.cardSubtitle || `Carta de Logro Coleccionable — ${ayudantia.course || "Ingenieria de Software"}`}
               accuracy={100}
               score={score}
               mascotSrc={ayudantia.cardImage || "/assets/mascot.png"}
+              sealLogoSrc={ayudantia.sealLogoUrl || "/assets/seal_logo.jpg"}
               onRestart={handleRestart}
               onExit={onExit}
             />

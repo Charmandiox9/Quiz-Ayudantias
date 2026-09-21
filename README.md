@@ -39,7 +39,7 @@ El sistema fue diseñado bajo principios rigurosos de **Clean Code**, **SOLID**,
   * **Unirse desde el Celular**: Interfaz móvil táctil y accesible para que los estudiantes voten las alternativas (A, B, C, D) mediante WebSockets en tiempo real sin requerir instalación previa ni cuentas de usuario.
   * **Modo Práctica Individual (Solo)**: Permite a los estudiantes responder las preguntas a su propio ritmo con retroalimentación inmediata, justificación teórica, carrusel de diagnóstico de errores y control de precisión/puntaje.
 * **Sistema de Recompensas y Certificación de Dominio**:
-  * **Sobre de Cera 3D Auténtico**: Animación de apertura de sobre con solapa triangular en perspectiva 3D y sello de cera oficial en alta resolución (`seal_logo.png`).
+  * **Sobre de Cera 3D Auténtico**: Animación de apertura de sobre con solapa triangular en perspectiva 3D y sello de cera oficial en alta resolución (`seal_logo.jpg`).
   * **Tarjeta Holográfica 3D**: Física de inclinación proporcional a la relación de aspecto (máximo 11° vertical, 13° horizontal), amortiguación suave (`cubic-bezier`), aceleración por hardware (`will-change: transform`) y shader reactivo de foil arcoíris con bisel especular.
   * **Síntesis de Audio Procedural (Web Audio API)**: Motor de audio sin dependencias externas pesadas con eventos táctiles discretos:
     * Ruptura de cera al presionar el sello (`playTear`).
@@ -92,8 +92,8 @@ public/
 |-- assets/              # Ilustraciones de alta resolución y sellos oficiales
 |   |-- ay02_uml.png     # Ilustración de recompensa Ayudantía 2
 |   |-- ay03_solid.png   # Ilustración de recompensa Ayudantía 3
-|   |-- seal_logo.png    # Sello de cera oficial 3D (2048x2048)
-|   |-- favicon_hi_res.png# Ícono de aplicación en alta resolución
+|   |-- seal_logo.jpg    # Sello de cera oficial 3D
+|   |-- favicon_hi_res.jpg # Ícono de aplicación en alta resolución
 supabase/
 |-- schema_card_downloads.sql # Esquema SQL seguro con RLS para auditoría
 ```

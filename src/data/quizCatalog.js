@@ -55,7 +55,7 @@ export function saveQuizCatalog(catalog) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(catalog));
 }
 
-export function createSubject({ name, code = "", description = "" }) {
+export function createSubject({ name, code = "", description = "", sealLogoUrl = "" }) {
   const cleanName = name.trim();
   if (!cleanName) throw new Error("La asignatura necesita un nombre.");
 
@@ -64,11 +64,12 @@ export function createSubject({ name, code = "", description = "" }) {
     name: cleanName,
     code: code.trim().toUpperCase(),
     description: description.trim(),
+    sealLogoUrl,
     quizzes: [],
   };
 }
 
-export function createQuiz({ subjectId, title, description = "", questions }) {
+export function createQuiz({ subjectId, title, description = "", cardTitle = "", cardSubtitle = "", cardImage = "", questions }) {
   const cleanTitle = title.trim();
   const cleanQuestions = questions.map((question) => ({
     ...question,
@@ -113,6 +114,9 @@ export function createQuiz({ subjectId, title, description = "", questions }) {
     subjectId,
     code: `Q${crypto.randomUUID().replaceAll("-", "").slice(0, 7).toUpperCase()}`,
     title: cleanTitle,
+    cardTitle: cardTitle.trim() || cleanTitle,
+    cardSubtitle: cardSubtitle.trim() || description.trim() || "Tarjeta de logro desbloqueada",
+    cardImage,
     subtitle: description.trim() || "Quiz creado por el profesor",
     description: description.trim(),
     course: "",

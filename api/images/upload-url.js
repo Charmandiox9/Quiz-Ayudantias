@@ -59,16 +59,20 @@ export default async function handler(req, res) {
     const userId = await authorizeTeacher(req);
     if (!userId) return json(res, 401, { error: "La sesión no es válida o la cuenta no tiene acceso docente." });
 
-    const { contentType, size } = req.body || {};
+    const { contentType, size, assetType = "question" } = req.body || {};
     if (contentType !== IMAGE_CONTENT_TYPE || !Number.isInteger(size) || size < 1 || size > MAX_COMPRESSED_SIZE) {
       return json(res, 400, { error: "La imagen debe ser WebP y pesar como máximo 220 KB." });
+    }
+    if (!["question", "subject-seal", "quiz-card"].includes(assetType)) {
+      return json(res, 400, { error: "El destino de la imagen no es válido." });
     }
 
     const client = getR2Client();
     if (!client) return json(res, 503, { error: "Falta configurar Cloudflare R2 en las variables de entorno de Vercel." });
 
     const bucket = process.env.R2_BUCKET_NAME;
-    const objectKey = `questions/${userId}/${randomUUID()}.webp`;
+    const assetFolder = assetType === "subject-seal" ? "subjects" : assetType === "quiz-card" ? "quiz-cards" : "questions";
+    const objectKey = `${assetFolder}/${userId}/${randomUUID()}.webp`;
     const command = new PutObjectCommand({ Bucket: bucket, Key: objectKey, ContentType: IMAGE_CONTENT_TYPE });
     const uploadUrl = await getSignedUrl(client, command, { expiresIn: 60 });
     const publicBaseUrl = process.env.R2_PUBLIC_BASE_URL.replace(/\/$/, "");

@@ -4,6 +4,7 @@ import { GAME_PHASES, OPTION_COLORS, OPTION_LABELS } from "../config/constants";
 import Card from "../components/common/Card";
 import Badge from "../components/common/Badge";
 import Button from "../components/common/Button";
+import RewardCard from "../components/common/RewardCard";
 import { getPlayerDeviceId, clearActiveSession } from "../utils/session";
 import { answerLabels, formatAnswerText, isAnswerCorrect, isMultipleSelect, isOrdering, isShortAnswer } from "../utils/answers";
 import { CheckCircle, Clock, Trophy, ArrowLeft, Wifi, AlertTriangle, XCircle, Award, Zap } from "lucide-react";
@@ -180,6 +181,13 @@ export default function PlayerScreen({ playerInfo, onExit }) {
   );
   const myRank = myRankIndex >= 0 ? myRankIndex + 1 : null;
   const totalPlayersCount = sortedPlayers.length;
+  const myFinalResult = (gameState.players || []).find(
+    (player) => (playerId && player.id === playerId) || player.name.toLowerCase() === playerInfo.name.toLowerCase()
+  );
+  const earnedPerfectCard = gameState.phase === GAME_PHASES.FINISHED && (
+    gameState.perfectPlayerIds?.includes(playerId) ||
+    (myFinalResult && myFinalResult.correctAnswersCount === gameState.totalQuestions)
+  );
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "var(--color-bg)", padding: "16px" }}>
@@ -458,26 +466,42 @@ export default function PlayerScreen({ playerInfo, onExit }) {
 
         {/* 6. Pantalla Final */}
         {gameState.phase === GAME_PHASES.FINISHED && (
-          <Card style={{ textAlign: "center", padding: "44px 20px" }}>
-            <Trophy size={48} color="var(--color-accent)" style={{ margin: "0 auto 16px" }} />
-            <h3 style={{ fontSize: "26px", fontWeight: 900, color: "var(--color-primary)", marginBottom: "8px" }}>
-              Quiz Finalizado
-            </h3>
-            <div style={{ padding: "18px", backgroundColor: "#FEF3C7", borderRadius: "14px", border: "1px solid #FDE68A", margin: "16px 0 24px" }}>
-              <p style={{ fontSize: "15px", color: "#92400E", fontWeight: 600 }}>Puntaje Final:</p>
-              <p style={{ fontSize: "32px", fontWeight: 900, color: "#B45309", fontFamily: "Consolas, monospace" }}>
-                {localScore} pts
-              </p>
-              {myRank && (
-                <p style={{ fontSize: "18px", fontWeight: 800, color: "#1E2761", marginTop: "6px" }}>
-                  Puesto Final: #{myRank} de {totalPlayersCount}
+          <>
+            {earnedPerfectCard && gameState.rewardCard && (
+              <div style={{ marginBottom: 20 }}>
+                <p style={{ textAlign: "center", color: "#15803D", fontWeight: 800, fontSize: 18 }}>¡Respondiste todo correctamente! Desbloqueaste una tarjeta.</p>
+                <RewardCard
+                  title={gameState.rewardCard.title}
+                  subtitle={gameState.rewardCard.subtitle}
+                  accuracy={100}
+                  score={localScore}
+                  mascotSrc={gameState.rewardCard.image}
+                  sealLogoSrc={gameState.rewardCard.sealLogoSrc}
+                  onExit={handleExit}
+                />
+              </div>
+            )}
+            <Card style={{ textAlign: "center", padding: "44px 20px" }}>
+              <Trophy size={48} color="var(--color-accent)" style={{ margin: "0 auto 16px" }} />
+              <h3 style={{ fontSize: "26px", fontWeight: 900, color: "var(--color-primary)", marginBottom: "8px" }}>
+                Quiz Finalizado
+              </h3>
+              <div style={{ padding: "18px", backgroundColor: "#FEF3C7", borderRadius: "14px", border: "1px solid #FDE68A", margin: "16px 0 24px" }}>
+                <p style={{ fontSize: "15px", color: "#92400E", fontWeight: 600 }}>Puntaje Final:</p>
+                <p style={{ fontSize: "32px", fontWeight: 900, color: "#B45309", fontFamily: "Consolas, monospace" }}>
+                  {localScore} pts
                 </p>
-              )}
-            </div>
-            <Button variant="primary" fullWidth size="lg" onClick={handleExit}>
-              Salir al Menu
-            </Button>
-          </Card>
+                {myRank && (
+                  <p style={{ fontSize: "18px", fontWeight: 800, color: "#1E2761", marginTop: "6px" }}>
+                    Puesto Final: #{myRank} de {totalPlayersCount}
+                  </p>
+                )}
+              </div>
+              <Button variant="primary" fullWidth size="lg" onClick={handleExit}>
+                Salir al Menu
+              </Button>
+            </Card>
+          </>
         )}
       </main>
     </div>
