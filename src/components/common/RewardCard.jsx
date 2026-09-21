@@ -291,9 +291,9 @@ export default function RewardCard({
       ctx.textBaseline = "middle";
       ctx.fillText(courseLabel, canvas.width / 2, stampY);
 
-      // Derecha: Logo de GitHub + Usuario @Marton1123
+      // Derecha: Logo de GitHub + Usuario @Charmandiox9
       ctx.font = "bold 16px Consolas, monospace";
-      const userText = "@Marton1123";
+      const userText = "@Charmandiox9";
       const textWidth = ctx.measureText(userText).width;
       const iconSize = 18;
       const rightMargin = 92;
