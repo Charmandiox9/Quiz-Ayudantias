@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Toaster } from "sileo";
 import HubScreen from "./modes/HubScreen";
 import HostScreen from "./modes/HostScreen";
 import PlayerScreen from "./modes/PlayerScreen";
@@ -191,6 +192,7 @@ export default function App() {
 
   return (
     <div>
+      <Toaster position="top-right" theme="light" offset={20} />
       {isFastJoinTarget && (
         <FastJoinScreen
           roomCode={initialRoomCode}

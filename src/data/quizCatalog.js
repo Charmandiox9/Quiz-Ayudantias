@@ -206,3 +206,32 @@ export function addQuiz(catalog, subjectId, quiz) {
     ),
   };
 }
+
+export function updateQuiz(catalog, quizId, form) {
+  const existing = findQuiz(catalog, quizId);
+  if (!existing) throw new Error("No se encontró el quiz que intentas editar.");
+
+  const updated = createQuiz({ ...form, subjectId: existing.subject.id });
+  return {
+    ...catalog,
+    subjects: catalog.subjects.map((subject) =>
+      subject.id === existing.subject.id
+        ? {
+            ...subject,
+            quizzes: subject.quizzes.map((quiz) => quiz.id === quizId
+              ? {
+                  ...updated,
+                  id: existing.quiz.id,
+                  code: existing.quiz.code,
+                  status: existing.quiz.status,
+                  version: (existing.quiz.version || 1) + 1,
+                  course: existing.quiz.course || "",
+                  defaultTimerSeconds: existing.quiz.defaultTimerSeconds || 60,
+                  pointsPerQuestion: existing.quiz.pointsPerQuestion || 1000,
+                }
+              : quiz),
+          }
+        : subject
+    ),
+  };
+}

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { sileo } from "sileo";
 import {
   addQuiz,
   addSubject,
@@ -9,6 +10,7 @@ import {
   publishQuiz,
   restoreQuiz,
   saveQuizCatalog,
+  updateQuiz,
 } from "../data/quizCatalog";
 import { AYUDANTIAS } from "../data";
 import Card from "../components/common/Card";
@@ -47,6 +49,27 @@ const newQuestion = () => ({
   explanation: "",
 });
 const emptyQuizForm = () => ({ title: "", description: "", cardTitle: "", cardSubtitle: "", cardImage: "", questions: [newQuestion()] });
+
+function quizToForm(quiz) {
+  return {
+    title: quiz.title || "",
+    description: quiz.description || quiz.subtitle || "",
+    cardTitle: quiz.cardTitle || "",
+    cardSubtitle: quiz.cardSubtitle || "",
+    cardImage: quiz.cardImage || "",
+    questions: (quiz.questions || []).map((question) => ({
+      type: question.type || "single_choice",
+      prompt: question.q || "",
+      topic: question.topic || "General",
+      options: [...(question.opts || [])],
+      correctOption: String(question.ans ?? "0"),
+      correctOptions: Array.isArray(question.ans) ? question.ans.map(String) : ["0"],
+      acceptedAnswers: Array.isArray(question.ans) ? question.ans.join("\n") : "",
+      imageUrl: question.image || "",
+      explanation: question.exp || "",
+    })),
+  };
+}
 
 const fieldStyle = {
   width: "100%",
@@ -123,6 +146,7 @@ export default function HubScreen({
   const [formError, setFormError] = useState("");
   const [subjectForm, setSubjectForm] = useState({ name: "", code: "", description: "", sealLogoUrl: "" });
   const [quizForm, setQuizForm] = useState(emptyQuizForm);
+  const [editingQuizId, setEditingQuizId] = useState(null);
   const [nickname, setNickname] = useState(() => (initialRoomCode ? generateAnonymousAlias() : ""));
   const [roomCode, setRoomCode] = useState(initialRoomCode);
   const [joinError, setJoinError] = useState("");
@@ -173,8 +197,10 @@ export default function HubScreen({
       setSubjectForm({ name: "", code: "", description: "", sealLogoUrl: "" });
       setEditingSubjectId(null);
       setModal(null);
+      sileo.success({ title: editingSubjectId ? "Asignatura actualizada" : "Asignatura creada" });
     } catch (error) {
       setFormError(error.message);
+      sileo.error({ title: "No se pudo guardar la asignatura", description: error.message });
     }
   };
 
@@ -196,8 +222,11 @@ export default function HubScreen({
     try {
       const sealLogoUrl = await uploadImageToR2(file, "subject-seal");
       setSubjectForm((current) => ({ ...current, sealLogoUrl }));
+      sileo.success({ title: "Estampado cargado" });
     } catch (error) {
-      setFormError(error.message || "No se pudo cargar el estampado.");
+      const message = error.message || "No se pudo cargar el estampado.";
+      setFormError(message);
+      sileo.error({ title: "Error al cargar el estampado", description: message });
     } finally {
       setUploadingSubjectSeal(false);
     }
@@ -207,20 +236,35 @@ export default function HubScreen({
     event.preventDefault();
     setFormError("");
     try {
-      const quiz = createQuiz({ ...quizForm, subjectId: selectedSubject.id });
-      await commitCatalog(addQuiz(catalog, selectedSubject.id, quiz));
+      if (editingQuizId) {
+        await commitCatalog(updateQuiz(catalog, editingQuizId, quizForm));
+      } else {
+        const quiz = createQuiz({ ...quizForm, subjectId: selectedSubject.id });
+        await commitCatalog(addQuiz(catalog, selectedSubject.id, quiz));
+      }
       setQuizForm(emptyQuizForm());
+      setEditingQuizId(null);
       setModal(null);
+      sileo.success({
+        title: editingQuizId ? "Quiz actualizado" : "Quiz guardado",
+        description: editingQuizId
+          ? "Se conservaron su estado y código de acceso."
+          : "Quedó guardado como borrador.",
+      });
     } catch (error) {
       setFormError(error.message);
+      sileo.error({ title: editingQuizId ? "No se pudo actualizar el quiz" : "No se pudo guardar el quiz", description: error.message });
     }
   };
 
   const handlePublishQuiz = async (quizId) => {
     try {
       await commitCatalog(publishQuiz(catalog, quizId));
+      sileo.success({ title: "Quiz publicado", description: "Ya está disponible para iniciar o practicar." });
     } catch (error) {
-      setPageError(`No se pudo publicar el quiz: ${error.message}`);
+      const message = `No se pudo publicar el quiz: ${error.message}`;
+      setPageError(message);
+      sileo.error({ title: "No se pudo publicar", description: error.message });
     }
   };
 
@@ -230,8 +274,11 @@ export default function HubScreen({
         ? archiveQuiz(catalog, quizId)
         : restoreQuiz(catalog, quizId);
       await commitCatalog(nextCatalog);
+      sileo.success({ title: transition === "archive" ? "Quiz archivado" : "Quiz restaurado" });
     } catch (error) {
-      setPageError(`No se pudo actualizar el quiz: ${error.message}`);
+      const message = `No se pudo actualizar el quiz: ${error.message}`;
+      setPageError(message);
+      sileo.error({ title: "No se pudo actualizar el quiz", description: error.message });
     }
   };
 
@@ -257,7 +304,15 @@ export default function HubScreen({
 
   const openQuizCreator = () => {
     setFormError("");
+    setEditingQuizId(null);
     setQuizForm(emptyQuizForm());
+    setModal("quiz");
+  };
+
+  const openQuizEditor = (quiz) => {
+    setFormError("");
+    setEditingQuizId(quiz.id);
+    setQuizForm(quizToForm(quiz));
     setModal("quiz");
   };
 
@@ -293,8 +348,11 @@ export default function HubScreen({
     try {
       const imageUrl = await uploadImageToR2(file);
       updateQuestion(questionIndex, "imageUrl", imageUrl);
+      sileo.success({ title: "Imagen agregada a la pregunta" });
     } catch (error) {
-      setFormError(error.message || "No se pudo cargar la imagen.");
+      const message = error.message || "No se pudo cargar la imagen.";
+      setFormError(message);
+      sileo.error({ title: "No se pudo cargar la imagen", description: message });
     } finally {
       setUploadingImageIndex(null);
     }
@@ -307,8 +365,11 @@ export default function HubScreen({
     try {
       const cardImage = await uploadImageToR2(file, "quiz-card");
       setQuizForm((current) => ({ ...current, cardImage }));
+      sileo.success({ title: "Imagen de tarjeta cargada" });
     } catch (error) {
-      setFormError(error.message || "No se pudo cargar la imagen de la tarjeta.");
+      const message = error.message || "No se pudo cargar la imagen de la tarjeta.";
+      setFormError(message);
+      sileo.error({ title: "No se pudo cargar la imagen de tarjeta", description: message });
     } finally {
       setUploadingCardImage(false);
     }
@@ -434,6 +495,7 @@ export default function HubScreen({
                           </span>
                         </div>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <Button size="sm" variant="outline" icon={Pencil} disabled={saving} onClick={() => openQuizEditor(quiz)}>Editar</Button>
                           {quiz.status === "draft" ? (
                             <Button size="sm" variant="outline" icon={Upload} disabled={saving} onClick={() => handlePublishQuiz(quiz.id)}>Publicar</Button>
                           ) : quiz.status === "archived" ? (
@@ -534,7 +596,7 @@ export default function HubScreen({
       )}
 
       {modal === "quiz" && selectedSubject && (
-        <Modal title={`Crear quiz · ${selectedSubject.name}`} onClose={() => setModal(null)}>
+        <Modal title={`${editingQuizId ? "Editar" : "Crear"} quiz · ${selectedSubject.name}`} onClose={() => setModal(null)}>
           <form onSubmit={handleCreateQuiz} style={{ display: "grid", gap: 16 }}>
             <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Título del quiz *
               <input autoFocus required value={quizForm.title} onChange={(event) => setQuizForm({ ...quizForm, title: event.target.value })} placeholder="Ej. Repaso de principios SOLID" style={{ ...fieldStyle, marginTop: 5 }} />
@@ -671,7 +733,7 @@ export default function HubScreen({
             {formError && <p role="alert" style={{ color: "#B91C1C", margin: 0 }}>{formError}</p>}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 9 }}>
               <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>
-              <Button type="submit" icon={Check} disabled={saving || uploadingCardImage}>{saving ? "Guardando…" : "Guardar borrador"}</Button>
+              <Button type="submit" icon={Check} disabled={saving || uploadingCardImage || uploadingImageIndex !== null}>{saving ? "Guardando…" : editingQuizId ? "Guardar cambios" : "Guardar borrador"}</Button>
             </div>
           </form>
         </Modal>
