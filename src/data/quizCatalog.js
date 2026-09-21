@@ -19,6 +19,7 @@ function createInitialCatalog() {
           id: `quiz-${ayudantia.id}`,
           subjectId: DEFAULT_SUBJECT_ID,
           status: "published",
+          practiceEnabled: true,
           version: 1,
           questions: ayudantia.questions.map((question) => ({
             ...question,
@@ -71,7 +72,7 @@ export function createSubject({ name, code = "", description = "", sealLogoUrl =
   };
 }
 
-export function createQuiz({ subjectId, title, description = "", cardTitle = "", cardSubtitle = "", cardImage = "", questions }) {
+export function createQuiz({ subjectId, title, description = "", cardTitle = "", cardSubtitle = "", cardImage = "", practiceEnabled = false, questions }) {
   const cleanTitle = title.trim();
   const cleanQuestions = questions.map((question) => ({
     ...question,
@@ -146,6 +147,7 @@ export function createQuiz({ subjectId, title, description = "", cardTitle = "",
     description: description.trim(),
     course: "",
     status: "draft",
+    practiceEnabled: Boolean(practiceEnabled),
     version: 1,
     defaultTimerSeconds: 60,
     pointsPerQuestion: 1000,
@@ -250,6 +252,7 @@ export function updateQuiz(catalog, quizId, form) {
                   id: existing.quiz.id,
                   code: existing.quiz.code,
                   status: existing.quiz.status,
+                  practiceEnabled: updated.practiceEnabled,
                   version: (existing.quiz.version || 1) + 1,
                   course: existing.quiz.course || "",
                   defaultTimerSeconds: existing.quiz.defaultTimerSeconds || 60,

@@ -43,6 +43,7 @@ export async function loadTeacherCatalog(userId) {
           subtitle: quiz.description || "",
           description: quiz.description || "",
           status: quiz.status,
+          practiceEnabled: Boolean(quiz.practice_enabled),
           version: quiz.version || quiz.metadata?.version || 1,
           questions: quiz.questions || [],
         })),
@@ -73,6 +74,7 @@ export async function saveTeacherCatalog(catalog, userId) {
     title: quiz.title || quiz.subtitle || "Quiz sin título",
     description: quiz.description || quiz.subtitle || "",
     status: quiz.status || "draft",
+    practice_enabled: Boolean(quiz.practiceEnabled),
     questions: quiz.questions || [],
     version: quiz.version || 1,
     metadata: {
@@ -91,4 +93,40 @@ export async function saveTeacherCatalog(catalog, userId) {
     const { error } = await supabase.from("quizzes").upsert(quizzes, { onConflict: "id" });
     if (error) throw error;
   }
+}
+
+export async function loadPublicPracticeCatalog() {
+  requireSupabase();
+  const [{ data: subjects, error: subjectsError }, { data: quizzes, error: quizzesError }] =
+    await Promise.all([
+      supabase.from("subjects").select("id,name,code,description,seal_logo_url").order("created_at"),
+      supabase.from("quizzes").select("id,subject_id,title,description,questions,metadata,version").order("created_at"),
+    ]);
+  if (subjectsError) throw subjectsError;
+  if (quizzesError) throw quizzesError;
+
+  return {
+    version: 1,
+    subjects: (subjects || []).map((subject) => ({
+      id: subject.id,
+      name: subject.name,
+      code: subject.code || "",
+      description: subject.description || "",
+      sealLogoUrl: subject.seal_logo_url || "",
+      quizzes: (quizzes || [])
+        .filter((quiz) => quiz.subject_id === subject.id)
+        .map((quiz) => ({
+          ...quiz.metadata,
+          id: quiz.id,
+          subjectId: quiz.subject_id,
+          title: quiz.title,
+          subtitle: quiz.description || "",
+          description: quiz.description || "",
+          status: "published",
+          practiceEnabled: true,
+          version: quiz.version || quiz.metadata?.version || 1,
+          questions: quiz.questions || [],
+        })),
+    })).filter((subject) => subject.quizzes.length > 0),
+  };
 }

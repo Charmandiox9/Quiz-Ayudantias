@@ -8,9 +8,10 @@ El editor admite selección única/múltiple, verdadero/falso, respuesta corta c
 
 1. Ejecuta `migrations/20260920000100_teacher_quiz_catalog.sql` en el SQL Editor del proyecto Supabase.
 2. Para guardar el estampado personalizado por asignatura, ejecuta también `migrations/20260921000100_subject_seal_logo.sql`.
-3. En Auth, desactiva el registro público, establece la URL pública de producción como **Site URL** y agrega las URL de desarrollo y producción a **URL Configuration → Redirect URLs**. La app usa `VITE_APP_URL` como destino de retorno (con `window.location.origin` como fallback).
-4. Crea/invita la cuenta del profesor desde el panel de Supabase Auth.
-5. Autoriza explícitamente su UUID en el SQL Editor (reemplaza el correo):
+3. Para publicar quizzes practicables en la portada, ejecuta `migrations/20260921000200_public_practice_quizzes.sql`.
+4. En Auth, desactiva el registro público, establece la URL pública de producción como **Site URL** y agrega las URL de desarrollo y producción a **URL Configuration → Redirect URLs**. La app usa `VITE_APP_URL` como destino de retorno (con `window.location.origin` como fallback).
+5. Crea/invita la cuenta del profesor desde el panel de Supabase Auth.
+6. Autoriza explícitamente su UUID en el SQL Editor (reemplaza el correo):
 
    ```sql
    insert into public.teacher_access (user_id)

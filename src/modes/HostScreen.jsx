@@ -67,6 +67,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
   const gameStateRef = useRef({ phase: GAME_PHASES.LOBBY, index: 0 });
   const questionStartTimeRef = useRef(0);
   const answeredPlayersRef = useRef(new Set());
+  const questionEndedRef = useRef(false);
 
   const currentQuestion = ayudantia.questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === ayudantia.questions.length - 1;
@@ -87,7 +88,18 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
     setIsAudioMuted(muted);
   };
 
+  const handleExit = async () => {
+    // Si el docente abandona antes de terminar, los jugadores no deben quedar
+    // esperando en una sala que ya no tiene host.
+    if (phase !== GAME_PHASES.FINISHED && serviceRef.current) {
+      await serviceRef.current.broadcastRoomClosed({ reason: "host_left" });
+    }
+    onExit();
+  };
+
   const handleTimeUp = () => {
+    if (questionEndedRef.current) return;
+    questionEndedRef.current = true;
     audioService.stopMusic();
     audioService.playTimeUp();
     setPhase(GAME_PHASES.VOTES);
@@ -251,6 +263,12 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
         });
         playersRef.current = updated;
         setPlayers(updated);
+
+        // No hay razones para mantener el cronómetro abierto cuando todos los
+        // participantes conectados ya respondieron esta pregunta.
+        if (playersRef.current.length > 0 && answeredPlayersRef.current.size >= playersRef.current.length) {
+          handleTimeUp();
+        }
       },
     });
 
@@ -262,6 +280,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
 
   const handleStartGame = () => {
     answeredPlayersRef.current.clear();
+    questionEndedRef.current = false;
     setPlayers((previous) => {
       const reset = previous.map((player) => ({ ...player, score: 0, lastEarnedPoints: 0, correctAnswersCount: 0 }));
       playersRef.current = reset;
@@ -335,6 +354,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
     const nextIndex = currentQuestionIndex + 1;
     const nextQuestion = ayudantia.questions[nextIndex];
     answeredPlayersRef.current.clear();
+    questionEndedRef.current = false;
     const optionOrder = getQuestionOrder(nextQuestion);
     optionOrderRef.current = optionOrder;
     setCurrentQuestionIndex(nextIndex);
@@ -366,7 +386,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
     <div style={{ minHeight: "100vh", backgroundColor: "var(--color-bg)", padding: "24px 20px" }}>
       <header style={{ maxWidth: "1200px", margin: "0 auto 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <Button variant="secondary" size="sm" icon={ArrowLeft} onClick={onExit}>
+          <Button variant="secondary" size="sm" icon={ArrowLeft} onClick={handleExit}>
             Salir al Menu
           </Button>
           <span style={{ fontWeight: 800, color: "var(--color-primary)", fontSize: "18px" }}>
@@ -744,7 +764,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
               <Button variant="primary" icon={RotateCcw} onClick={handleStartGame}>
                 Reiniciar Mismo Quiz
               </Button>
-              <Button variant="secondary" onClick={onExit}>
+              <Button variant="secondary" onClick={handleExit}>
                 Volver al Hub
               </Button>
             </div>

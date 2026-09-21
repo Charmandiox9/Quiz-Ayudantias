@@ -50,7 +50,7 @@ const newQuestion = () => ({
   imageUrl: "",
   explanation: "",
 });
-const emptyQuizForm = () => ({ title: "", description: "", cardTitle: "", cardSubtitle: "", cardImage: "", questions: [newQuestion()] });
+const emptyQuizForm = () => ({ title: "", description: "", cardTitle: "", cardSubtitle: "", cardImage: "", practiceEnabled: false, questions: [newQuestion()] });
 
 function quizToForm(quiz) {
   return {
@@ -59,6 +59,7 @@ function quizToForm(quiz) {
     cardTitle: quiz.cardTitle || "",
     cardSubtitle: quiz.cardSubtitle || "",
     cardImage: quiz.cardImage || "",
+    practiceEnabled: Boolean(quiz.practiceEnabled),
     questions: (quiz.questions || []).map((question) => ({
       type: question.type || "single_choice",
       prompt: question.q || "",
@@ -542,6 +543,7 @@ export default function HubScreen({
                             <Badge variant={quiz.status === "published" ? "success" : quiz.status === "archived" ? "neutral" : "amber"}>
                               {quiz.status === "published" ? "Publicado" : quiz.status === "archived" ? "Archivado" : "Borrador"}
                             </Badge>
+                            {quiz.practiceEnabled && <Badge variant="navy">Práctica pública</Badge>}
                           </div>
                           <p style={{ margin: "0 0 7px", color: "#64748B", fontSize: 14 }}>{quiz.description || quiz.subtitle || "Sin descripción"}</p>
                           <span style={{ color: "#64748B", fontSize: 12 }}>
@@ -657,6 +659,11 @@ export default function HubScreen({
             </label>
             <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Descripción
               <textarea value={quizForm.description} onChange={(event) => setQuizForm({ ...quizForm, description: event.target.value })} rows={2} style={{ ...fieldStyle, marginTop: 5, resize: "vertical" }} />
+            </label>
+
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: 14, border: "1px solid #CBD5E1", borderRadius: 10, color: "#334155", cursor: "pointer" }}>
+              <input type="checkbox" checked={quizForm.practiceEnabled} onChange={(event) => setQuizForm({ ...quizForm, practiceEnabled: event.target.checked })} style={{ marginTop: 3 }} />
+              <span><strong style={{ display: "block", color: "#1E2761" }}>Permitir práctica pública</strong><span style={{ display: "block", marginTop: 3, color: "#64748B", fontSize: 12 }}>Cuando el quiz esté publicado, aparecerá en la portada dentro de su asignatura.</span></span>
             </label>
 
             <fieldset style={{ border: "1px solid #CBD5E1", borderRadius: 12, padding: 15, display: "grid", gap: 12, background: "#F8FAFC" }}>

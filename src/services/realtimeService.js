@@ -16,6 +16,7 @@ export class RealtimeQuizService {
     onGameState,
     onNextQuestion,
     onGameEnd,
+    onRoomClosed,
     onPresenceSync,
     onPlayerReject,
   } = {}) {
@@ -59,6 +60,12 @@ export class RealtimeQuizService {
     if (onGameEnd) {
       this.channel.on("broadcast", { event: "game:end" }, ({ payload }) => {
         onGameEnd(payload);
+      });
+    }
+
+    if (onRoomClosed) {
+      this.channel.on("broadcast", { event: "game:closed" }, ({ payload }) => {
+        onRoomClosed(payload);
       });
     }
 
@@ -184,6 +191,10 @@ export class RealtimeQuizService {
 
   broadcastEnd(summaryPayload) {
     return this.broadcastEvent("game:end", summaryPayload);
+  }
+
+  broadcastRoomClosed(payload = {}) {
+    return this.broadcastEvent("game:closed", payload);
   }
 
   broadcastReject(rejectPayload) {

@@ -92,12 +92,17 @@ export default function PlayerScreen({ playerInfo, onExit }) {
           ...(summary || {}),
         }));
       },
+      onRoomClosed: () => {
+        clearActiveSession();
+        setIsConnected(false);
+        onExit();
+      },
     });
 
     return () => {
       service.unsubscribe();
     };
-  }, [playerInfo.roomCode, playerInfo.name, playerId]);
+  }, [playerInfo.roomCode, playerInfo.name, playerId, onExit]);
 
   const sendVote = (answer) => {
     if (hasVoted || gameState.phase !== GAME_PHASES.QUESTION) return;

@@ -7,9 +7,9 @@ import SoloScreen from "./modes/SoloScreen";
 import FastJoinScreen from "./modes/FastJoinScreen";
 import TeacherAccessScreen from "./modes/TeacherAccessScreen";
 import { AYUDANTIAS, getAyudantiaById, getAyudantiaByCode } from "./data";
-import { loadQuizCatalog, saveQuizCatalog } from "./data/quizCatalog";
+import { loadQuizCatalog } from "./data/quizCatalog";
 import { isSupabaseConfigured, supabase } from "./services/supabaseClient";
-import { hasTeacherAccess, loadTeacherCatalog, saveTeacherCatalog } from "./services/teacherCatalogService";
+import { hasTeacherAccess, loadPublicPracticeCatalog, loadTeacherCatalog, saveTeacherCatalog } from "./services/teacherCatalogService";
 import {
   saveActiveSession,
   getActiveSession,
@@ -69,6 +69,9 @@ export default function App() {
   const [teacherUser, setTeacherUser] = useState(null);
   const [teacherAllowed, setTeacherAllowed] = useState(false);
   const [catalog, setCatalog] = useState(null);
+  const [publicCatalog, setPublicCatalog] = useState(null);
+  const [publicCatalogError, setPublicCatalogError] = useState("");
+  const [publicCatalogReloadKey, setPublicCatalogReloadKey] = useState(0);
   const [catalogError, setCatalogError] = useState("");
   const [accessNotice, setAccessNotice] = useState("");
   const [sendingLink, setSendingLink] = useState(false);
@@ -93,6 +96,7 @@ export default function App() {
         setTeacherAllowed(false);
         setCatalog(null);
         setTeacherUser(nextUser);
+        if (!nextUser) setPublicCatalogReloadKey((key) => key + 1);
       }
       setAuthReady(true);
     });
@@ -101,6 +105,19 @@ export default function App() {
       listener.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return undefined;
+    let active = true;
+    loadPublicPracticeCatalog()
+      .then((nextCatalog) => {
+        if (active) setPublicCatalog(nextCatalog);
+      })
+      .catch((error) => {
+        if (active) setPublicCatalogError(`No se pudieron cargar las prácticas: ${error.message}`);
+      });
+    return () => { active = false; };
+  }, [publicCatalogReloadKey]);
 
   useEffect(() => {
     if (!isSupabaseConfigured || !teacherUser || currentView !== "hub") return undefined;
@@ -173,6 +190,7 @@ export default function App() {
     if (!teacherUser) throw new Error("La sesión docente expiró. Vuelve a entrar.");
     await saveTeacherCatalog(nextCatalog, teacherUser.id);
     setCatalog(nextCatalog);
+    setPublicCatalogReloadKey((key) => key + 1);
   };
 
   const handleStartSolo = ({ ayudantia }) => {
@@ -212,6 +230,9 @@ export default function App() {
           busy={sendingLink}
           notice={accessNotice}
           errorNotice={catalogError}
+          publicCatalog={publicCatalog}
+          publicCatalogError={publicCatalogError}
+          onStartSolo={handleStartSolo}
         />
       )}
 
