@@ -343,6 +343,10 @@ export default function HubScreen({
 
   const handleImageUpload = async (questionIndex, file) => {
     if (!file) return;
+    if (uploadingImageIndex !== null) {
+      sileo.warning({ title: "Ya se está cargando una imagen" });
+      return;
+    }
     setFormError("");
     setUploadingImageIndex(questionIndex);
     try {
@@ -356,6 +360,19 @@ export default function HubScreen({
     } finally {
       setUploadingImageIndex(null);
     }
+  };
+
+  const handleQuestionPaste = (event, questionIndex) => {
+    const imageItem = Array.from(event.clipboardData?.items || []).find(
+      (item) => item.kind === "file" && item.type.startsWith("image/")
+    );
+    if (!imageItem) return;
+
+    const imageFile = imageItem.getAsFile();
+    if (!imageFile) return;
+
+    event.preventDefault();
+    handleImageUpload(questionIndex, imageFile);
   };
 
   const handleCardImageUpload = async (file) => {
@@ -625,7 +642,7 @@ export default function HubScreen({
             </fieldset>
 
             {quizForm.questions.map((question, questionIndex) => (
-              <fieldset key={questionIndex} style={{ border: "1px solid #CBD5E1", borderRadius: 12, padding: 15, display: "grid", gap: 12 }}>
+              <fieldset key={questionIndex} onPaste={(event) => handleQuestionPaste(event, questionIndex)} style={{ border: "1px solid #CBD5E1", borderRadius: 12, padding: 15, display: "grid", gap: 12 }}>
                 <legend style={{ padding: "0 7px", color: "#1E2761", fontWeight: 800 }}>Pregunta {questionIndex + 1}</legend>
                 <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Tipo de pregunta
                   <select
@@ -673,6 +690,7 @@ export default function HubScreen({
                     </span>
                   </label>
                   <span style={{ color: "#64748B", fontSize: 11 }}>Se optimiza y guarda en Cloudflare R2; máximo 8 MB por archivo original y 220 KB al comprimir.</span>
+                  <span style={{ color: "#64748B", fontSize: 12 }}>También puedes enfocar un campo de esta pregunta y pegar una imagen copiada con Ctrl+V (⌘+V en Mac).</span>
                 </div>
                 <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Tema
                   <input value={question.topic} onChange={(event) => updateQuestion(questionIndex, "topic", event.target.value)} style={{ ...fieldStyle, marginTop: 5 }} />
