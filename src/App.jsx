@@ -15,6 +15,7 @@ import {
   clearActiveSession,
   getPlayerDeviceId,
 } from "./utils/session";
+import { getAppUrl } from "./utils/appUrl";
 
 function getInitialRoomCode() {
   if (typeof window !== "undefined" && window.location.search) {
@@ -159,7 +160,7 @@ export default function App() {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: window.location.origin, shouldCreateUser: false },
+        options: { emailRedirectTo: getAppUrl(), shouldCreateUser: false },
       });
       if (error) throw error;
     } finally {

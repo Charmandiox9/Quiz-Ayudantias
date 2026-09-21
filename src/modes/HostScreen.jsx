@@ -11,6 +11,7 @@ import VoteBars from "../components/quiz/VoteBars";
 import Leaderboard from "../components/quiz/Leaderboard";
 import TimerRing from "../components/quiz/TimerRing";
 import { answerLabels, isAnswerCorrect, responseToOptionIndices } from "../utils/answers";
+import { getAppUrl } from "../utils/appUrl";
 import {
   ArrowLeft,
   ArrowRight,
@@ -60,10 +61,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
     gameStateRef.current = { phase, index: currentQuestionIndex };
   }, [currentQuestion, phase, currentQuestionIndex]);
 
-  const origin =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : "https://quiz-ayudantia-ingenieria-software.vercel.app";
+  const origin = getAppUrl();
   const joinUrl = `${origin}/?join=${roomCode}`;
 
   const handleToggleAudio = () => {
