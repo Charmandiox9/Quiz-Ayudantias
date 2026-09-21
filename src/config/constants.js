@@ -17,7 +17,8 @@ export const GAME_PHASES = {
   FINISHED: "finished",
 };
 
-export const OPTION_LABELS = ["A", "B", "C", "D", "E"];
+export const MAX_ANSWER_OPTIONS = 8;
+export const OPTION_LABELS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
 export const OPTION_COLORS = {
   A: "#DC2626", // Rojo cardinal
@@ -25,6 +26,9 @@ export const OPTION_COLORS = {
   C: "#D97706", // Ambar
   D: "#059669", // Esmeralda
   E: "#7C3AED", // Violeta
+  F: "#0E7490", // Cian oscuro
+  G: "#BE185D", // Frambuesa
+  H: "#4D7C0F", // Oliva
 };
 
 export const THEME = {

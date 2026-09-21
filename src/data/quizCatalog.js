@@ -88,8 +88,15 @@ export function createQuiz({ subjectId, title, description = "", cardTitle = "",
     if (question.type === "ordering") {
       return question.options.length < 2 || question.options.some((option) => !option);
     }
-    return question.options.length < 2 || question.options.some((option) => !option) ||
-      (question.type === "multiple_select" && question.correctOptions.length === 0);
+    if (question.options.length < 2 || question.options.some((option) => !option)) return true;
+    if (question.type === "multiple_select") {
+      return question.correctOptions.length === 0 || question.correctOptions.some((index) => index < 0 || index >= question.options.length);
+    }
+    if (question.type === "single_choice" || question.type === "true_false") {
+      const answerIndex = Number(question.correctOption);
+      return question.correctOption === "" || !Number.isInteger(answerIndex) || answerIndex < 0 || answerIndex >= question.options.length;
+    }
+    return false;
   });
 
   if (!subjectId || !cleanTitle || cleanQuestions.length === 0) {
@@ -103,8 +110,17 @@ export function createQuiz({ subjectId, title, description = "", cardTitle = "",
     if (invalidQuestion.type === "ordering") {
       throw new Error("Completa al menos dos elementos para ordenar.");
     }
-    if (invalidQuestion.type === "multiple_select" && invalidQuestion.correctOptions.length === 0) {
-      throw new Error("Marca al menos una alternativa correcta en cada pregunta de selección múltiple.");
+    if (invalidQuestion.type === "multiple_select") {
+      if (invalidQuestion.correctOptions.length === 0) {
+        throw new Error("Marca al menos una alternativa correcta en cada pregunta de selección múltiple.");
+      }
+      throw new Error("Revisa las alternativas correctas de cada pregunta de selección múltiple.");
+    }
+    if (invalidQuestion.type === "single_choice" || invalidQuestion.type === "true_false") {
+      if (invalidQuestion.options.length < 2 || invalidQuestion.options.some((option) => !option)) {
+        throw new Error("Completa todas las alternativas de cada pregunta.");
+      }
+      throw new Error("Marca una alternativa correcta en cada pregunta de selección única.");
     }
     throw new Error("Completa todas las alternativas de cada pregunta.");
   }

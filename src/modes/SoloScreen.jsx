@@ -196,7 +196,8 @@ export default function SoloScreen({ ayudantia, onExit }) {
           <div style={{ marginBottom: "32px" }}>
             <RewardCard
               title={ayudantia.cardTitle || ayudantia.title}
-              subtitle={ayudantia.cardSubtitle || `Carta de Logro Coleccionable — ${ayudantia.course || "Ingenieria de Software"}`}
+              subtitle={ayudantia.cardSubtitle || `Carta de Logro Coleccionable — ${ayudantia.courseLabel || ayudantia.course || "Quiz Ayudantías"}`}
+              courseLabel={ayudantia.courseLabel || ayudantia.course || "Quiz Ayudantías"}
               accuracy={100}
               score={score}
               mascotSrc={ayudantia.cardImage || "/assets/mascot.png"}

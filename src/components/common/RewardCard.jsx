@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef } from "react";
+import { sileo } from "sileo";
 import Button from "./Button";
 import { audioService } from "../../services/audioService";
 import { certificateService } from "../../services/certificateService";
@@ -31,7 +32,8 @@ function generateUniqueSerial(prefix = "SOLID") {
 
 export default function RewardCard({
   title = "Ayudantia N°3: Principios SOLID",
-  subtitle = "Certificado de Dominio Conceptual 2026-02",
+  subtitle = "Certificado de Dominio Conceptual",
+  courseLabel = "Quiz Ayudantías",
   accuracy = 100,
   score = 16000,
   mascotSrc = "/assets/ay03_solid.png",
@@ -246,11 +248,15 @@ export default function RewardCard({
 
     try {
       const response = await fetch(activeImgSrc);
+      if (!response.ok) {
+        throw new Error(`No se pudo cargar el diseño de la carta (${response.status}).`);
+      }
       const sourceBlob = await response.blob();
       const imgBitmap = await createImageBitmap(sourceBlob);
 
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("El navegador no pudo preparar la imagen para descargar.");
 
       canvas.width = imgBitmap.width || 1792;
       canvas.height = imgBitmap.height || 2400;
@@ -283,7 +289,7 @@ export default function RewardCard({
       ctx.font = "600 15px system-ui, -apple-system, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("Ingenieria de Software • 2026-02", canvas.width / 2, stampY);
+      ctx.fillText(courseLabel, canvas.width / 2, stampY);
 
       // Derecha: Logo de GitHub + Usuario @Marton1123
       ctx.font = "bold 16px Consolas, monospace";
@@ -314,17 +320,16 @@ export default function RewardCard({
       const canvasBlob = await new Promise((resolve) =>
         canvas.toBlob(resolve, "image/png", 1.0)
       );
-
-      const finalPngBlob = new Blob([await canvasBlob.arrayBuffer()], {
-        type: "image/png",
-      });
+      imgBitmap.close?.();
+      if (!canvasBlob) throw new Error("No se pudo generar el archivo PNG.");
 
       await new Promise((resolve) => setTimeout(resolve, 1100));
 
-      const saved = await saveImageFile(finalPngBlob, cleanFilename);
+      const saved = await saveImageFile(canvasBlob, cleanFilename);
 
       if (saved) {
         setDownloadSuccess(true);
+        sileo.success({ title: "Descarga iniciada", description: "La carta se está guardando como PNG. Si tu navegador pide confirmación, acepta guardar el archivo." });
         certificateService.recordDownload({
           serialId: uniqueId,
           quizTitle: title,
@@ -333,15 +338,13 @@ export default function RewardCard({
           nickname: "Estudiante",
         });
       }
-    } catch {
-      const a = document.createElement("a");
-      a.href = activeImgSrc;
-      a.download = cleanFilename;
-      a.setAttribute("download", cleanFilename);
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setDownloadSuccess(true);
+    } catch (error) {
+      sileo.error({
+        title: "No se pudo descargar la carta",
+        description: error instanceof Error
+          ? `${error.message} Si el diseño está en R2, revisa que el bucket permita solicitudes CORS desde este sitio.`
+          : "Revisa la conexión e inténtalo nuevamente.",
+      });
     } finally {
       setIsSuctioning(false);
       setIsDownloading(false);
@@ -571,7 +574,7 @@ export default function RewardCard({
                     letterSpacing: "0.5px",
                   }}
                 >
-                  Ingenieria de Software • 2026-02
+                  {courseLabel}
                 </span>
               </div>
 

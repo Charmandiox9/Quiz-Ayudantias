@@ -184,9 +184,9 @@ export default function MistakesCarousel({ mistakes = [], totalQuestions = 16 })
                 {responseLabel}:
               </span>
             </div>
-            <p style={{ fontSize: "13.5px", color: "#7F1D1D", margin: 0, lineHeight: 1.45 }}>
+            <MarkdownContent className="quiz-markdown-review-answer">
               {selectedText || "No se registró una respuesta."}
-            </p>
+            </MarkdownContent>
           </div>
 
           {/* Respuesta Correcta */}
@@ -211,9 +211,9 @@ export default function MistakesCarousel({ mistakes = [], totalQuestions = 16 })
                 {correctLabel}
               </span>
             </div>
-            <p style={{ fontSize: "13.5px", color: "#14532D", margin: 0, lineHeight: 1.45 }}>
+            <MarkdownContent className="quiz-markdown-review-answer">
               {correctText}
-            </p>
+            </MarkdownContent>
           </div>
         </div>
 

@@ -6,6 +6,8 @@ import Badge from "../components/common/Badge";
 import Button from "../components/common/Button";
 import RewardCard from "../components/common/RewardCard";
 import MarkdownContent from "../components/common/MarkdownContent";
+import AnswerOptionMarkdown from "../components/quiz/AnswerOptionMarkdown";
+import SortableAnswerList from "../components/quiz/SortableAnswerList";
 import { getPlayerDeviceId, clearActiveSession } from "../utils/session";
 import { answerLabels, formatAnswerText, isAnswerCorrect, isMultipleSelect, isOrdering, isShortAnswer } from "../utils/answers";
 import { CheckCircle, Clock, Trophy, ArrowLeft, Wifi, AlertTriangle, XCircle, Award, Zap } from "lucide-react";
@@ -140,17 +142,6 @@ export default function PlayerScreen({ playerInfo, onExit }) {
     if (Array.isArray(selectedOption) && selectedOption.length > 1) sendVote(selectedOption);
   };
 
-  const moveOrderItem = (index, direction) => {
-    setSelectedOption((previous) => {
-      if (!Array.isArray(previous)) return previous;
-      const target = index + direction;
-      if (target < 0 || target >= previous.length) return previous;
-      const next = [...previous];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
-  };
-
   const handleExit = () => {
     clearActiveSession();
     onExit();
@@ -264,17 +255,14 @@ export default function PlayerScreen({ playerInfo, onExit }) {
 
             {gameState.answerType === "ordering" && (
               <div style={{ display: "grid", gap: 9 }}>
-                <p style={{ margin: "0 0 4px", color: "var(--color-text-secondary)", fontWeight: 700 }}>Ordena los elementos y confirma tu respuesta:</p>
-                {(Array.isArray(selectedOption) ? selectedOption : gameState.optionOrder).map((originalIndex, position, order) => (
-                  <div key={`${originalIndex}-${position}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", border: "1px solid var(--color-border)", borderRadius: 10, background: "#FFFFFF" }}>
-                    <span style={{ minWidth: 28, height: 28, display: "grid", placeItems: "center", borderRadius: 8, background: "#EEF2FF", color: "var(--color-primary)", fontWeight: 800 }}>{position + 1}</span>
-                    <span style={{ flex: 1, textAlign: "left", lineHeight: 1.4 }}>{gameState.optionTexts[originalIndex]}</span>
-                    {!hasVoted && <>
-                      <button type="button" aria-label={`Subir ${gameState.optionTexts[originalIndex]}`} disabled={position === 0} onClick={() => moveOrderItem(position, -1)} style={orderButtonStyle}>↑</button>
-                      <button type="button" aria-label={`Bajar ${gameState.optionTexts[originalIndex]}`} disabled={position === order.length - 1} onClick={() => moveOrderItem(position, 1)} style={orderButtonStyle}>↓</button>
-                    </>}
-                  </div>
-                ))}
+                <p style={{ margin: "0 0 4px", color: "var(--color-text-secondary)", fontWeight: 700 }}>Arrastra los elementos para ordenarlos o usa las flechas:</p>
+                <SortableAnswerList
+                  items={Array.isArray(selectedOption) ? selectedOption : gameState.optionOrder}
+                  onChange={setSelectedOption}
+                  disabled={hasVoted}
+                  label="Orden de respuesta"
+                  renderItem={(originalIndex) => <div style={{ textAlign: "left" }}><MarkdownContent className="quiz-markdown-option">{gameState.optionTexts[originalIndex]}</MarkdownContent></div>}
+                />
                 <Button variant="primary" fullWidth disabled={hasVoted || !Array.isArray(selectedOption) || selectedOption.length < 2} onClick={handleSubmitOrder}>Confirmar orden</Button>
               </div>
             )}
@@ -304,7 +292,7 @@ export default function PlayerScreen({ playerInfo, onExit }) {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: "clamp(32px, 8vw, 44px)",
+                      fontSize: "clamp(24px, 6vw, 32px)",
                       fontWeight: 900,
                       fontFamily: "Consolas, monospace",
                       cursor: hasVoted ? "default" : "pointer",
@@ -318,7 +306,7 @@ export default function PlayerScreen({ playerInfo, onExit }) {
                     }}
                   >
                     {label}
-                    {answerOptions.length <= 2 && <span style={{ font: "600 14px var(--font-sans)" }}>{optionText}</span>}
+                    <AnswerOptionMarkdown className="quiz-markdown-option-live">{optionText}</AnswerOptionMarkdown>
                   </button>
                 );
               })}
@@ -478,6 +466,7 @@ export default function PlayerScreen({ playerInfo, onExit }) {
                   score={localScore}
                   mascotSrc={gameState.rewardCard.image}
                   sealLogoSrc={gameState.rewardCard.sealLogoSrc}
+                  courseLabel={gameState.rewardCard.courseLabel || "Quiz Ayudantías"}
                   onExit={handleExit}
                 />
               </div>
@@ -508,14 +497,3 @@ export default function PlayerScreen({ playerInfo, onExit }) {
     </div>
   );
 }
-
-const orderButtonStyle = {
-  width: 32,
-  height: 32,
-  border: "1px solid var(--color-border)",
-  borderRadius: 7,
-  background: "#FFFFFF",
-  color: "var(--color-primary)",
-  fontWeight: 800,
-  cursor: "pointer",
-};

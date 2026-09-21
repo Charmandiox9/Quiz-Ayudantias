@@ -13,6 +13,7 @@ import {
   updateQuiz,
 } from "../data/quizCatalog";
 import { AYUDANTIAS } from "../data";
+import { MAX_ANSWER_OPTIONS, OPTION_LABELS } from "../config/constants";
 import Card from "../components/common/Card";
 import Button from "../components/common/Button";
 import MarkdownContent from "../components/common/MarkdownContent";
@@ -297,9 +298,15 @@ export default function HubScreen({
     onJoinPlayer({ name: cleanNick, roomCode: cleanCode, ayudantia: matchingQuiz || AYUDANTIAS[0] });
   };
 
+  const withSubjectContext = (quiz) => ({
+    ...quiz,
+    courseLabel: [selectedSubject.name, selectedSubject.code].filter(Boolean).join(" • "),
+    sealLogoUrl: selectedSubject.sealLogoUrl || "",
+  });
+
   const startHost = (quiz) => {
     const roomCode = `Q${crypto.randomUUID().replaceAll("-", "").slice(0, 7).toUpperCase()}`;
-    onStartHost({ ayudantia: { ...quiz, sealLogoUrl: selectedSubject.sealLogoUrl || "" }, roomCode });
+    onStartHost({ ayudantia: withSubjectContext(quiz), roomCode });
   };
 
   const openQuizCreator = () => {
@@ -415,6 +422,34 @@ export default function HubScreen({
     }));
   };
 
+  const addChoiceOption = (questionIndex) => {
+    setQuizForm((current) => ({
+      ...current,
+      questions: current.questions.map((question, index) => index === questionIndex && question.options.length < MAX_ANSWER_OPTIONS
+        ? { ...question, options: [...question.options, ""] }
+        : question),
+    }));
+  };
+
+  const removeChoiceOption = (questionIndex, optionIndex) => {
+    setQuizForm((current) => ({
+      ...current,
+      questions: current.questions.map((question, index) => {
+        if (index !== questionIndex || question.options.length <= 2) return question;
+        const options = question.options.filter((_, itemIndex) => itemIndex !== optionIndex);
+        const correctOptions = question.correctOptions
+          .filter((item) => Number(item) !== optionIndex)
+          .map((item) => String(Number(item) > optionIndex ? Number(item) - 1 : Number(item)));
+        const hasCorrectOption = question.correctOption !== "" && question.correctOption != null;
+        const correctIndex = hasCorrectOption ? Number(question.correctOption) : -1;
+        const correctOption = !hasCorrectOption || correctIndex === optionIndex
+          ? ""
+          : String(correctIndex > optionIndex ? correctIndex - 1 : correctIndex);
+        return { ...question, options, correctOptions, correctOption };
+      }),
+    }));
+  };
+
   return (
     <main style={{ minHeight: "100vh", background: "#F8FAFC", padding: "32px 18px" }}>
       <div style={{ maxWidth: 1120, margin: "0 auto" }}>
@@ -520,7 +555,7 @@ export default function HubScreen({
                           ) : (
                             <>
                               <Button size="sm" variant="primary" icon={Monitor} onClick={() => startHost(quiz)}>Hostear</Button>
-                              <Button size="sm" variant="secondary" icon={BookOpen} onClick={() => onStartSolo({ ayudantia: { ...quiz, sealLogoUrl: selectedSubject.sealLogoUrl || "" } })}>Practicar</Button>
+                              <Button size="sm" variant="secondary" icon={BookOpen} onClick={() => onStartSolo({ ayudantia: withSubjectContext(quiz) })}>Practicar</Button>
                               <Button size="sm" variant="outline" icon={Archive} disabled={saving} onClick={() => handleQuizStatusChange(quiz.id, "archive")}>Archivar</Button>
                             </>
                           )}
@@ -703,7 +738,7 @@ export default function HubScreen({
                 ) : (
                   <div style={{ display: "grid", gap: 8 }}>
                     {question.options.map((option, optionIndex) => (
-                      <div key={optionIndex} style={{ display: "grid", gridTemplateColumns: question.type === "ordering" ? "auto minmax(0, 1fr) auto" : "auto minmax(0, 1fr)", gap: 9, alignItems: "center", color: "#475569", fontSize: 13 }}>
+                      <div key={optionIndex} style={{ display: "grid", gridTemplateColumns: question.type === "ordering" ? "auto minmax(0, 1fr) auto" : question.type === "true_false" ? "auto minmax(0, 1fr)" : "auto minmax(0, 1fr) auto", gap: 9, alignItems: "center", color: "#475569", fontSize: 13 }}>
                         {question.type === "ordering" ? (
                           <span style={{ color: "#1E2761", fontWeight: 800, minWidth: 22 }}>{optionIndex + 1}.</span>
                         ) : (
@@ -717,7 +752,7 @@ export default function HubScreen({
                             aria-label={`Marcar alternativa ${optionIndex + 1} correcta`}
                           />
                         )}
-                        <input required readOnly={question.type === "true_false"} value={option} onChange={(event) => updateQuestion(questionIndex, "option", event.target.value, optionIndex)} placeholder={question.type === "ordering" ? `Elemento en posición ${optionIndex + 1}` : `Alternativa ${optionIndex + 1}`} style={{ ...fieldStyle, ...(question.type === "true_false" ? { background: "#F1F5F9" } : {}) }} />
+                        <textarea required readOnly={question.type === "true_false"} rows={2} value={option} onChange={(event) => updateQuestion(questionIndex, "option", event.target.value, optionIndex)} placeholder={question.type === "ordering" ? `Elemento en posición ${optionIndex + 1}` : `Alternativa ${optionIndex + 1}`} style={{ ...fieldStyle, resize: "vertical", ...(question.type === "true_false" ? { background: "#F1F5F9" } : {}) }} />
                         {question.type === "ordering" && (
                           <div style={{ display: "flex", gap: 4 }}>
                             <button type="button" onClick={() => moveOption(questionIndex, optionIndex, -1)} disabled={optionIndex === 0} aria-label={`Subir elemento ${optionIndex + 1}`} style={{ border: "1px solid #CBD5E1", background: "#FFF", borderRadius: 6, padding: 6, cursor: optionIndex === 0 ? "not-allowed" : "pointer" }}><ArrowUp size={15} /></button>
@@ -725,14 +760,29 @@ export default function HubScreen({
                             {question.options.length > 2 && <button type="button" onClick={() => removeOrderingOption(questionIndex, optionIndex)} aria-label={`Eliminar elemento ${optionIndex + 1}`} style={{ border: "1px solid #FECACA", background: "#FFF", color: "#B91C1C", borderRadius: 6, padding: 6, cursor: "pointer" }}><X size={15} /></button>}
                           </div>
                         )}
+                        {(question.type === "single_choice" || question.type === "multiple_select") && (
+                          <button type="button" onClick={() => removeChoiceOption(questionIndex, optionIndex)} disabled={question.options.length <= 2} aria-label={`Eliminar alternativa ${OPTION_LABELS[optionIndex] || optionIndex + 1}`} title="Eliminar alternativa" style={{ width: 36, height: 36, border: "1px solid #FECACA", background: "#FFF", color: "#B91C1C", borderRadius: 7, display: "grid", placeItems: "center", cursor: question.options.length <= 2 ? "not-allowed" : "pointer", opacity: question.options.length <= 2 ? 0.45 : 1 }}><X size={16} /></button>
+                        )}
                       </div>
                     ))}
-                    {question.type === "ordering" && question.options.length < 8 && (
+                    {(question.type === "single_choice" || question.type === "multiple_select") && question.options.length < MAX_ANSWER_OPTIONS && (
+                      <button type="button" onClick={() => addChoiceOption(questionIndex)} style={{ justifySelf: "start", border: "1px dashed #94A3B8", background: "#F8FAFC", color: "#1E2761", borderRadius: 7, padding: "7px 10px", cursor: "pointer", fontWeight: 700 }}>+ Agregar alternativa ({question.options.length}/{MAX_ANSWER_OPTIONS})</button>
+                    )}
+                    {question.type === "ordering" && question.options.length < MAX_ANSWER_OPTIONS && (
                       <button type="button" onClick={() => setQuizForm((current) => ({ ...current, questions: current.questions.map((item, index) => index === questionIndex ? { ...item, options: [...item.options, ""] } : item) }))} style={{ justifySelf: "start", border: "1px dashed #94A3B8", background: "#F8FAFC", color: "#1E2761", borderRadius: 7, padding: "7px 10px", cursor: "pointer", fontWeight: 700 }}>+ Agregar elemento</button>
                     )}
                   </div>
                 )}
-                {question.type !== "short_answer" && <p style={{ margin: 0, color: "#64748B", fontSize: 12 }}>{question.type === "multiple_select" ? "Marca todas las alternativas correctas." : question.type === "ordering" ? "La lista está en el orden correcto; los estudiantes deberán reordenarla." : "Marca el círculo junto a la alternativa correcta."}</p>}
+                {question.type !== "short_answer" && question.options.some((option) => option.trim()) && <details className="markdown-preview">
+                  <summary>Vista previa de alternativas con Markdown</summary>
+                  <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
+                    {question.options.map((option, optionIndex) => <div key={optionIndex} style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                      <strong style={{ flex: "0 0 auto", color: "#1E2761" }}>{question.type === "ordering" ? `${optionIndex + 1}.` : `${OPTION_LABELS[optionIndex] || optionIndex + 1}.`}</strong>
+                      <MarkdownContent>{option || "*(vacía)*"}</MarkdownContent>
+                    </div>)}
+                  </div>
+                </details>}
+                {question.type !== "short_answer" && <p style={{ margin: 0, color: "#64748B", fontSize: 12 }}>{question.type === "multiple_select" ? "Marca todas las alternativas correctas. Puedes agregar hasta 8 y darles formato Markdown." : question.type === "ordering" ? "La lista está en el orden correcto; los estudiantes deberán reordenarla." : question.type === "true_false" ? "Marca el círculo junto a la alternativa correcta." : "Marca la alternativa correcta. Puedes agregar hasta 8 opciones y usar Markdown."}</p>}
                 <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Explicación (opcional)
                   <textarea value={question.explanation} onChange={(event) => updateQuestion(questionIndex, "explanation", event.target.value)} rows={2} style={{ ...fieldStyle, marginTop: 5, resize: "vertical" }} />
                 </label>
@@ -747,7 +797,7 @@ export default function HubScreen({
             ))}
 
             <Button type="button" variant="secondary" icon={Plus} onClick={() => setQuizForm((current) => ({ ...current, questions: [...current.questions, newQuestion()] }))}>Agregar pregunta</Button>
-            <p style={{ margin: 0, color: "#64748B", fontSize: 12 }}>Las respuestas cortas aceptan variantes y se corrigen ignorando tildes y mayúsculas. La selección múltiple requiere todas las correctas y ninguna incorrecta. En enunciado y explicación puedes usar Markdown: **negrita**, *cursiva*, `código`, listas, citas y bloques de código; también se admiten tablas y tachado.</p>
+            <p style={{ margin: 0, color: "#64748B", fontSize: 12 }}>Las respuestas cortas aceptan variantes y se corrigen ignorando tildes y mayúsculas. La selección múltiple requiere todas las correctas y ninguna incorrecta. Enunciados, explicaciones y alternativas admiten Markdown, como **negrita**, *cursiva*, `código`, listas, citas, bloques de código, tablas y tachado.</p>
             {formError && <p role="alert" style={{ color: "#B91C1C", margin: 0 }}>{formError}</p>}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 9 }}>
               <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>

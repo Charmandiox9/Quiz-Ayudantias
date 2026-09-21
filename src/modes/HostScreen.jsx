@@ -323,6 +323,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit }) {
             subtitle: ayudantia.cardSubtitle || ayudantia.description || "Tarjeta de logro desbloqueada",
             image: ayudantia.cardImage || ayudantia.cardImageLegacy || "/assets/mascot.png",
             sealLogoSrc: ayudantia.sealLogoUrl || "/assets/seal_logo.jpg",
+            courseLabel: ayudantia.courseLabel || ayudantia.course || "Quiz Ayudantías",
             quizTitle: ayudantia.title,
           },
         });

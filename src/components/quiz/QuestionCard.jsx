@@ -3,6 +3,8 @@ import Card from '../common/Card';
 import Badge from '../common/Badge';
 import Button from '../common/Button';
 import MarkdownContent from '../common/MarkdownContent';
+import AnswerOptionMarkdown from './AnswerOptionMarkdown';
+import SortableAnswerList from './SortableAnswerList';
 import { BookOpen, AlertCircle, Check } from 'lucide-react';
 import { OPTION_LABELS, OPTION_COLORS } from '../../config/constants';
 import { formatAnswerText, getAnswerIndices, isAnswerCorrect, isMultipleSelect, isOrdering, isShortAnswer } from '../../utils/answers';
@@ -97,7 +99,7 @@ export default function QuestionCard({
 
       {ordering && !onReorderAnswer && !isRevealed && (
         <p style={{ margin: '0 0 14px', color: 'var(--color-text-secondary)', fontSize: 14, fontWeight: 600 }}>
-          Ordena los elementos desde tu dispositivo.
+          Arrastra los elementos para ordenarlos o usa las flechas.
         </p>
       )}
       {ordering && !onReorderAnswer && isRevealed && (
@@ -149,18 +151,14 @@ export default function QuestionCard({
 
       {ordering && onReorderAnswer && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 16 }}>
-          {orderingIndices.map((optionIndex, position) => (
-            <div key={`${optionIndex}-${position}`} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', border: '1px solid var(--color-border)', borderRadius: 10, background: isRevealed && correctIndices[position] === optionIndex ? 'var(--color-success-bg)' : 'var(--color-surface)' }}>
-              <span style={{ minWidth: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', background: '#EEF2FF', color: 'var(--color-primary)', fontWeight: 800 }}>{position + 1}</span>
-              <span style={{ flex: 1, lineHeight: 1.4 }}>{question.opts[optionIndex]}</span>
-              {!isRevealed && (
-                <div style={{ display: 'flex', gap: 4 }}>
-                  <button type="button" aria-label={`Subir ${question.opts[optionIndex]}`} disabled={position === 0} onClick={() => onReorderAnswer(moveItem(orderingIndices, position, -1))} style={reorderButtonStyle}>↑</button>
-                  <button type="button" aria-label={`Bajar ${question.opts[optionIndex]}`} disabled={position === orderingIndices.length - 1} onClick={() => onReorderAnswer(moveItem(orderingIndices, position, 1))} style={reorderButtonStyle}>↓</button>
-                </div>
-              )}
-            </div>
-          ))}
+          <SortableAnswerList
+            items={orderingIndices}
+            onChange={onReorderAnswer}
+            disabled={isRevealed}
+            isCorrectPosition={(item, position) => isRevealed && correctIndices[position] === item}
+            label="Orden de respuesta"
+            renderItem={(optionIndex) => <MarkdownContent className="quiz-markdown-option">{question.opts[optionIndex]}</MarkdownContent>}
+          />
           {isRevealed && !isAnswerCorrect(question, orderingIndices) && (
             <p style={{ margin: '4px 0 0', color: '#166534', fontWeight: 700 }}>Orden correcto: {formatAnswerText(question, question.ans)}</p>
           )}
@@ -243,7 +241,7 @@ export default function QuestionCard({
               >
                 {label}
               </span>
-              <span
+              <div
                 style={{
                   fontSize: 'clamp(15px, 2.6vw, 19px)',
                   fontWeight: 600,
@@ -251,8 +249,8 @@ export default function QuestionCard({
                   lineHeight: 1.45,
                 }}
               >
-                {optionText}
-              </span>
+                <AnswerOptionMarkdown>{optionText}</AnswerOptionMarkdown>
+              </div>
             </button>
           );
         })}
@@ -302,23 +300,4 @@ export default function QuestionCard({
       )}
     </Card>
   );
-}
-
-const reorderButtonStyle = {
-  width: 32,
-  height: 32,
-  border: '1px solid var(--color-border)',
-  borderRadius: 7,
-  background: '#FFFFFF',
-  color: 'var(--color-primary)',
-  fontWeight: 800,
-  cursor: 'pointer',
-};
-
-function moveItem(items, index, direction) {
-  const target = index + direction;
-  if (target < 0 || target >= items.length) return items;
-  const next = [...items];
-  [next[index], next[target]] = [next[target], next[index]];
-  return next;
 }
