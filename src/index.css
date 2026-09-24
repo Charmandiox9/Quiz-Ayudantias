@@ -611,6 +611,31 @@ input, button, select, textarea {
   align-items: center;
 }
 
+.quiz-explanation-with-mascot--text-only {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.quiz-mascot-toggle {
+  padding: 5px 9px;
+  border: 1px solid #86efac;
+  border-radius: 999px;
+  background: #fff;
+  color: #166534;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.quiz-mascot-toggle:hover {
+  background: #dcfce7;
+}
+
+.quiz-mascot-toggle:focus-visible {
+  outline: 3px solid #22c55e;
+  outline-offset: 2px;
+}
+
 .quiz-explainer-mascot {
   position: relative;
   min-width: 0;

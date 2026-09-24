@@ -35,6 +35,22 @@ export default function QuestionCard({
   isRevealed = false,
   showExplanation = false,
 }: QuestionCardProps) {
+  const [mascotEnabled, setMascotEnabled] = React.useState(() => {
+    try {
+      return window.localStorage.getItem('quiz-mascot-enabled') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem('quiz-mascot-enabled', String(mascotEnabled));
+    } catch {
+      // The preference is optional when browser storage is unavailable.
+    }
+  }, [mascotEnabled]);
+
   if (!question) return null;
   const selectedIndices = Array.isArray(selectedAnswerIndex)
     ? selectedAnswerIndex
@@ -286,7 +302,7 @@ export default function QuestionCard({
 
       {showExplanation && question.exp && (
         <div
-          className="quiz-explanation-with-mascot"
+          className={`quiz-explanation-with-mascot${mascotEnabled ? '' : ' quiz-explanation-with-mascot--text-only'}`}
           style={{
             marginTop: '22px',
             padding: 'clamp(14px, 3vw, 20px) clamp(16px, 3.5vw, 24px)',
@@ -295,14 +311,18 @@ export default function QuestionCard({
             borderRadius: '12px',
           }}
         >
-          <React.Suspense fallback={<div className="quiz-explainer-mascot quiz-explainer-mascot--loading">Preparando ayudante 3D…</div>}>
-            <QuizExplainerMascot explanation={question.exp} correctAnswer={formatAnswerText(question, question.ans)} />
-          </React.Suspense>
+          {mascotEnabled && (
+            <React.Suspense fallback={<div className="quiz-explainer-mascot quiz-explainer-mascot--loading">Preparando ayudante 3D…</div>}>
+              <QuizExplainerMascot explanation={question.exp} correctAnswer={formatAnswerText(question, question.ans)} />
+            </React.Suspense>
+          )}
           <div className="quiz-explanation-with-mascot__copy">
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
                 gap: '8px',
                 color: '#15803D',
                 fontWeight: 800,
@@ -310,8 +330,18 @@ export default function QuestionCard({
                 marginBottom: '8px',
               }}
             >
-              <AlertCircle size={20} />
-              <span>Fundamento Técnico</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={20} />
+                Fundamento Técnico
+              </span>
+              <button
+                type="button"
+                className="quiz-mascot-toggle"
+                aria-pressed={mascotEnabled}
+                onClick={() => setMascotEnabled((enabled) => !enabled)}
+              >
+                Ayudante 3D: {mascotEnabled ? 'activado' : 'desactivado'}
+              </button>
             </div>
             <MarkdownContent className="quiz-markdown-explanation">
               {question.exp}
