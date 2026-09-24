@@ -9,6 +9,7 @@ interface CardProps {
   footer?: ReactNode;
   style?: CSSProperties;
   className?: string;
+  id?: string;
 }
 
 export default function Card({
@@ -19,6 +20,7 @@ export default function Card({
   footer = null,
   style = {},
   className = '',
+  id,
 }: CardProps) {
   const containerStyle = {
     backgroundColor: '#FFFFFF',
@@ -49,7 +51,7 @@ export default function Card({
   };
 
   return (
-    <div style={containerStyle} className={className}>
+    <div id={id} style={containerStyle} className={className}>
       {(title || subtitle || headerAction) && (
         <div style={headerStyle}>
           <div>

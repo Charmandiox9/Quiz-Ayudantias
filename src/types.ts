@@ -59,6 +59,7 @@ export interface QuizDefinition {
   version?: number;
   status?: QuizStatus;
   practiceEnabled?: boolean;
+  mascotEnabled?: boolean;
   questions: QuizQuestion[];
 }
 
@@ -68,11 +69,13 @@ export interface CatalogSubject {
   code: string;
   description: string;
   sealLogoUrl?: string;
+  mascotEnabled?: boolean | null;
   quizzes: QuizDefinition[];
 }
 
 export interface QuizCatalog {
   version: number;
+  mascotEnabled?: boolean;
   subjects: CatalogSubject[];
 }
 

@@ -37,6 +37,7 @@ import {
   Plus,
   RotateCcw,
   Smartphone,
+  Settings2,
   Upload,
   ImagePlus,
   History,
@@ -254,6 +255,7 @@ export default function HubScreen({
   const [failedSubjectSealUrl, setFailedSubjectSealUrl] = useState("");
   const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [showMascotSettings, setShowMascotSettings] = useState(false);
   const [quizSearch, setQuizSearch] = useState("");
   const [quizStatusFilter, setQuizStatusFilter] = useState("all");
   const [sessionHistory, setSessionHistory] = useState<SessionHistoryEntry[]>([]);
@@ -323,6 +325,26 @@ export default function HubScreen({
     } finally {
       setSaving(false);
     }
+  };
+
+  const saveMascotSettings = async (nextCatalog: QuizCatalog, description: string): Promise<void> => {
+    try {
+      await commitCatalog(nextCatalog);
+      sileo.success({ title: description });
+    } catch (error) {
+      const message = errorMessage(error, "No se pudo guardar la configuración del ayudante.");
+      setPageError(message);
+      sileo.error({ title: "No se pudo guardar la configuración", description: message });
+    }
+  };
+
+  const setSubjectMascotSetting = (subjectId: string, setting: string): void => {
+    const mascotEnabled = setting === "inherit" ? null : setting === "enabled";
+    const nextCatalog = {
+      ...catalog,
+      subjects: catalog.subjects.map((subject) => subject.id === subjectId ? { ...subject, mascotEnabled } : subject),
+    };
+    void saveMascotSettings(nextCatalog, "Configuración de asignatura guardada");
   };
 
   const handleSaveSubject = async (event: FormEvent<HTMLFormElement>) => {
@@ -450,6 +472,7 @@ export default function HubScreen({
     ...quiz,
     courseLabel: [selectedSubject.name, selectedSubject.code].filter(Boolean).join(" • "),
     sealLogoUrl: selectedSubject.sealLogoUrl || "",
+    mascotEnabled: selectedSubject.mascotEnabled ?? catalog.mascotEnabled ?? true,
   }) : quiz;
 
   const startHost = (quiz: QuizDefinition) => {
@@ -624,6 +647,7 @@ export default function HubScreen({
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             {teacherEmail && <span style={{ color: "#64748B", fontSize: 12 }}>{teacherEmail}</span>}
             {teacherUserId && <Button variant="outline" size="sm" icon={History} onClick={handleOpenHistory}>Historial</Button>}
+            <Button variant="outline" size="sm" icon={Settings2} onClick={() => setShowMascotSettings((visible) => !visible)} aria-expanded={showMascotSettings} aria-controls="teacher-mascot-settings">Ayudante 3D</Button>
             {onSignOut && <Button variant="secondary" size="sm" onClick={onSignOut}>Cerrar sesión</Button>}
             <Button variant="primary" icon={CirclePlus} disabled={saving} onClick={() => openSubjectEditor()}>
               Nueva asignatura
@@ -644,6 +668,38 @@ export default function HubScreen({
           <div><span>Quizzes publicados</span><strong>{quizCounts.published}</strong></div>
           <div><span>Borradores</span><strong>{quizCounts.drafts}</strong></div>
         </div>
+
+        {showMascotSettings && (
+          <Card id="teacher-mascot-settings" title="Configuración del ayudante 3D" subtitle="Al habilitarlo, el ayudante y la narración de las explicaciones se activan automáticamente en los quizzes." style={{ marginBottom: 20 }}>
+            <label className="teacher-mascot-global-setting">
+              <input
+                type="checkbox"
+                checked={catalog.mascotEnabled ?? true}
+                disabled={saving}
+                onChange={(event) => void saveMascotSettings({ ...catalog, mascotEnabled: event.target.checked }, "Configuración general guardada")}
+              />
+              <span><strong>Habilitar por defecto</strong><small>Se aplica a todas las asignaturas que hereden esta opción.</small></span>
+            </label>
+            <div className="teacher-mascot-subject-settings">
+              <h3>Excepciones por asignatura</h3>
+              {catalog.subjects.length ? catalog.subjects.map((subject) => (
+                <label key={subject.id}>
+                  <span>{subject.name}</span>
+                  <select
+                    aria-label={`Ayudante 3D para ${subject.name}`}
+                    value={subject.mascotEnabled == null ? "inherit" : subject.mascotEnabled ? "enabled" : "disabled"}
+                    disabled={saving}
+                    onChange={(event) => setSubjectMascotSetting(subject.id, event.target.value)}
+                  >
+                    <option value="inherit">Usar configuración general ({(catalog.mascotEnabled ?? true) ? "activado" : "desactivado"})</option>
+                    <option value="enabled">Activado</option>
+                    <option value="disabled">Desactivado</option>
+                  </select>
+                </label>
+              )) : <p>Aún no hay asignaturas para configurar.</p>}
+            </div>
+          </Card>
+        )}
 
         <div className="teacher-library-layout">
           <aside className="teacher-subjects-panel">

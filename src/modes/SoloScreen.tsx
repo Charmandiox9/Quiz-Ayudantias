@@ -280,6 +280,7 @@ export default function SoloScreen({ ayudantia, onExit }: { ayudantia: QuizDefin
           : null}
         isRevealed={isAnswerRevealed}
         showExplanation={isAnswerRevealed}
+        mascotEnabled={ayudantia.mascotEnabled ?? true}
       />
 
       {isAnswerRevealed && (

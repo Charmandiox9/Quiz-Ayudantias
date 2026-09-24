@@ -254,6 +254,22 @@ input, button, select, textarea {
 .teacher-join-content { padding: 0 16px 16px; }
 .teacher-join-content > p { margin: 0 0 12px; color: var(--color-text-secondary); font-size: 13px; }
 
+.teacher-mascot-global-setting { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer; }
+.teacher-mascot-global-setting input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--color-primary); }
+.teacher-mascot-global-setting span { display: grid; gap: 3px; }
+.teacher-mascot-global-setting strong { color: var(--color-text-main); font-size: 14px; }
+.teacher-mascot-global-setting small { color: var(--color-text-secondary); font-size: 12px; }
+.teacher-mascot-subject-settings { display: grid; gap: 9px; margin-top: 18px; }
+.teacher-mascot-subject-settings h3 { margin: 0 0 2px; color: var(--color-primary); font-size: 14px; }
+.teacher-mascot-subject-settings > label { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: 13px; }
+.teacher-mascot-subject-settings select { width: min(100%, 320px); min-height: 40px; padding: 0 10px; border: 1px solid var(--color-border-hover); border-radius: 8px; background: white; color: var(--color-text-main); font: inherit; }
+.teacher-mascot-subject-settings > p { color: var(--color-text-secondary); font-size: 13px; }
+
+@media (max-width: 560px) {
+  .teacher-mascot-subject-settings > label { align-items: stretch; flex-direction: column; gap: 7px; }
+  .teacher-mascot-subject-settings select { width: 100%; }
+}
+
 @media (max-width: 760px) {
   .teacher-library-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .teacher-subjects-panel { position: static; }
@@ -704,27 +720,6 @@ input, button, select, textarea {
 
 .quiz-explanation-with-mascot--text-only {
   grid-template-columns: minmax(0, 1fr);
-}
-
-.quiz-mascot-toggle {
-  padding: 5px 9px;
-  border: 1px solid #86efac;
-  border-radius: 999px;
-  background: #fff;
-  color: #166534;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.quiz-mascot-toggle:hover {
-  background: #dcfce7;
-}
-
-.quiz-mascot-toggle:focus-visible {
-  outline: 3px solid #22c55e;
-  outline-offset: 2px;
 }
 
 .quiz-explainer-mascot {

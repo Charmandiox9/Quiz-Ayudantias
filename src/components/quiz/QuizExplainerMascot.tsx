@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { Volume2, VolumeX } from "lucide-react";
 import { animateQuizMascot, createQuizMascotModel, disposeQuizMascotModel } from "../../three/createQuizMascotModel";
 
 function plainText(value: string): string {
@@ -25,7 +24,6 @@ export default function QuizExplainerMascot({ explanation, correctAnswer }: { ex
   const mountRef = useRef<HTMLDivElement>(null);
   const speakingRef = useRef(false);
   const [speaking, setSpeaking] = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const speechSupported = typeof window !== "undefined" && "speechSynthesis" in window;
   const narration = useMemo(() => plainText(`La respuesta correcta es ${correctAnswer}. ${explanation}`), [correctAnswer, explanation]);
 
@@ -139,34 +137,19 @@ export default function QuizExplainerMascot({ explanation, correctAnswer }: { ex
   }, [finishNarration, narration, speechSupported]);
 
   useEffect(() => {
-    if (!voiceEnabled || !speechSupported || !narration) return undefined;
+    if (!speechSupported || !narration) return undefined;
     const timer = window.setTimeout(speak, 180);
     return () => {
       window.clearTimeout(timer);
       stopNarration();
     };
-  }, [narration, speak, stopNarration, voiceEnabled, speechSupported]);
-
-  const toggleVoice = () => {
-    if (speaking) {
-      stopNarration();
-      setVoiceEnabled(false);
-      return;
-    }
-    setVoiceEnabled(true);
-    speak();
-  };
+  }, [narration, speak, stopNarration, speechSupported]);
 
   return (
     <aside className="quiz-explainer-mascot" aria-label="Ayudante virtual de la explicación">
       <div ref={mountRef} className="quiz-explainer-mascot__canvas" />
       <div className="quiz-explainer-mascot__label">
         <span>{speaking ? "Explicando…" : "Ayudante 3D"}</span>
-        {speechSupported && (
-          <button type="button" onClick={toggleVoice} aria-label={speaking ? "Detener narración" : "Escuchar explicación"} title={speaking ? "Detener narración" : "Escuchar explicación"}>
-            {speaking ? <VolumeX size={16} /> : <Volume2 size={16} />}
-          </button>
-        )}
       </div>
     </aside>
   );

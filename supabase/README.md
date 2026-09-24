@@ -11,9 +11,10 @@ El editor admite selección única/múltiple, verdadero/falso, respuesta corta c
 3. Para publicar quizzes practicables en la portada, ejecuta `migrations/20260921000200_public_practice_quizzes.sql`.
 4. Para guardar y consultar el historial de sesiones completadas, ejecuta `migrations/20260924000100_quiz_session_history.sql`.
 5. Para guardar y consultar estadísticas agregadas por pregunta, ejecuta después `migrations/20260924000200_session_question_stats.sql`.
-6. En Auth, desactiva el registro público, establece la URL pública de producción como **Site URL** y agrega las URL de desarrollo y producción a **URL Configuration → Redirect URLs**. La app usa `VITE_APP_URL` como destino de retorno (con `window.location.origin` como fallback).
-7. Crea/invita la cuenta del profesor desde el panel de Supabase Auth.
-8. Autoriza explícitamente su UUID en el SQL Editor (reemplaza el correo):
+6. Para guardar la configuración general y por asignatura del ayudante 3D, ejecuta `migrations/20260924000300_teacher_quiz_mascot_settings.sql`.
+7. En Auth, desactiva el registro público, establece la URL pública de producción como **Site URL** y agrega las URL de desarrollo y producción a **URL Configuration → Redirect URLs**. La app usa `VITE_APP_URL` como destino de retorno (con `window.location.origin` como fallback).
+8. Crea/invita la cuenta del profesor desde el panel de Supabase Auth.
+9. Autoriza explícitamente su UUID en el SQL Editor (reemplaza el correo):
 
    ```sql
    insert into public.teacher_access (user_id)
@@ -22,8 +23,8 @@ El editor admite selección única/múltiple, verdadero/falso, respuesta corta c
    ```
 
    Confirma que la sentencia insertó una fila. La app solo concede el catálogo y el historial a cuentas presentes en `teacher_access`.
-9. Configura `.env` desde `.env.example` con Project URL, la clave pública anon/publishable y `VITE_APP_URL` (en producción, la URL de Vercel). No uses nunca `service_role` en el frontend ni en una variable `VITE_*`. En Vercel, define `VITE_APP_URL` en Environment Variables y vuelve a desplegar para que Vite la incorpore al build.
-10. Reinicia Vite después de cambiar variables. El primer inicio docente migra el catálogo local existente si la cuenta todavía no tiene asignaturas remotas.
+10. Configura `.env` desde `.env.example` con Project URL, la clave pública anon/publishable y `VITE_APP_URL` (en producción, la URL de Vercel). No uses nunca `service_role` en el frontend ni en una variable `VITE_*`. En Vercel, define `VITE_APP_URL` en Environment Variables y vuelve a desplegar para que Vite la incorpore al build.
+11. Reinicia Vite después de cambiar variables. El primer inicio docente migra el catálogo local existente si la cuenta todavía no tiene asignaturas remotas.
 
 ## Cloudflare R2 para imágenes
 
@@ -48,7 +49,7 @@ El editor admite selección única/múltiple, verdadero/falso, respuesta corta c
 
 Los estampados por asignatura y las imágenes de tarjetas se guardan en el mismo bucket, bajo `subjects/<id-del-profesor>/` y `quiz-cards/<id-del-profesor>/`, respectivamente. Si una asignatura no tiene estampado personalizado, se mantiene `/assets/seal_logo.jpg`.
 
-Las políticas RLS y los grants se aplican en la migración: el rol `anon` no obtiene acceso a estas tablas; una cuenta autenticada solo puede leer y escribir sus propias filas si además está habilitada en `teacher_access`.
+Las políticas RLS y los grants se aplican en las migraciones: `anon` solo puede consultar el indicador de ayudante necesario para los quizzes practicables; una cuenta autenticada solo puede leer y escribir su catálogo y configuración si además está habilitada en `teacher_access`.
 
 ## Límite actual
 

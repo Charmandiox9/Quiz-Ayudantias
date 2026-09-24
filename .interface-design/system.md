@@ -45,6 +45,7 @@ Avoid introducing extra accent hues for decoration. Quiz option colors remain th
 
 ## Interaction states
 - Draft quizzes expose the publish action; published quizzes expose host and practice actions.
+- The quiz mascot and its narration are controlled by the teacher's general preference, with an optional per-subject override; students see no opt-out controls.
 - Multi-select questions clearly say that several alternatives may be chosen and require explicit submission.
 - Show validation errors next to the relevant form and preserve entered values after an error.
 - Respect keyboard focus visibility and provide hit areas appropriate for touch use.

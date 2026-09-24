@@ -729,6 +729,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
               totalQuestions={ayudantia.questions.length}
               isRevealed={true}
               showExplanation={true}
+              mascotEnabled={ayudantia.mascotEnabled ?? true}
             />
 
             {!isShortAnswer(currentQuestion) && !isOrdering(currentQuestion) && (

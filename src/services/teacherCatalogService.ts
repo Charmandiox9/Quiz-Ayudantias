@@ -1,7 +1,8 @@
 import { supabase } from "./supabaseClient";
 import type { QuizCatalog, QuizDefinition, QuizStatus } from "../types";
 
-interface SubjectRow { id: string; name: string; code: string | null; description: string | null; seal_logo_url: string | null }
+interface SubjectRow { id: string; owner_id?: string; name: string; code: string | null; description: string | null; seal_logo_url: string | null; mascot_enabled?: boolean | null }
+interface TeacherSettingsRow { owner_id: string; quiz_mascot_enabled: boolean }
 interface QuizRow { id: string; subject_id: string; title: string; description: string | null; status: QuizStatus; practice_enabled: boolean; questions: QuizDefinition["questions"] | null; version: number | null; metadata: Record<string, unknown> | null }
 
 function requireSupabase(): NonNullable<typeof supabase> {
@@ -22,24 +23,28 @@ export async function hasTeacherAccess(userId: string): Promise<boolean> {
 
 export async function loadTeacherCatalog(userId: string): Promise<QuizCatalog> {
   const client = requireSupabase();
-  const [{ data: subjects, error: subjectsError }, { data: quizzes, error: quizzesError }] =
+  const [{ data: subjects, error: subjectsError }, { data: quizzes, error: quizzesError }, { data: settings, error: settingsError }] =
     await Promise.all([
       client.from("subjects").select("*").eq("owner_id", userId).order("created_at"),
       client.from("quizzes").select("*").eq("owner_id", userId).order("created_at"),
+      client.from("teacher_settings").select("quiz_mascot_enabled").eq("owner_id", userId).maybeSingle(),
     ]);
   if (subjectsError) throw subjectsError;
   if (quizzesError) throw quizzesError;
+  if (settingsError) throw settingsError;
 
   const subjectRows = (subjects || []) as SubjectRow[];
   const quizRows = (quizzes || []) as QuizRow[];
   return {
     version: 1,
+    mascotEnabled: (settings as Pick<TeacherSettingsRow, "quiz_mascot_enabled"> | null)?.quiz_mascot_enabled ?? true,
     subjects: subjectRows.map((subject) => ({
       id: subject.id,
       name: subject.name,
       code: subject.code || "",
       description: subject.description || "",
       sealLogoUrl: subject.seal_logo_url || "",
+      mascotEnabled: subject.mascot_enabled,
       quizzes: quizRows
         .filter((quiz) => quiz.subject_id === subject.id)
         .map((quiz) => ({
@@ -68,7 +73,14 @@ export async function saveTeacherCatalog(catalog: QuizCatalog, userId: string): 
     code: subject.code || "",
     description: subject.description || "",
     seal_logo_url: subject.sealLogoUrl || null,
+    mascot_enabled: subject.mascotEnabled ?? null,
   }));
+
+  const { error: settingsError } = await client.from("teacher_settings").upsert({
+    owner_id: userId,
+    quiz_mascot_enabled: catalog.mascotEnabled ?? true,
+  }, { onConflict: "owner_id" });
+  if (settingsError) throw settingsError;
 
   if (subjects.length) {
     const { error } = await client.from("subjects").upsert(subjects, { onConflict: "id" });
@@ -105,16 +117,19 @@ export async function saveTeacherCatalog(catalog: QuizCatalog, userId: string): 
 
 export async function loadPublicPracticeCatalog(): Promise<QuizCatalog> {
   const client = requireSupabase();
-  const [{ data: subjects, error: subjectsError }, { data: quizzes, error: quizzesError }] =
+  const [{ data: subjects, error: subjectsError }, { data: quizzes, error: quizzesError }, { data: settings, error: settingsError }] =
     await Promise.all([
-      client.from("subjects").select("id,name,code,description,seal_logo_url").order("created_at"),
+      client.from("subjects").select("id,owner_id,name,code,description,seal_logo_url,mascot_enabled").order("created_at"),
       client.from("quizzes").select("id,subject_id,title,description,questions,metadata,version").order("created_at"),
+      client.from("teacher_settings").select("owner_id,quiz_mascot_enabled"),
     ]);
   if (subjectsError) throw subjectsError;
   if (quizzesError) throw quizzesError;
+  if (settingsError) throw settingsError;
 
   const subjectRows = (subjects || []) as SubjectRow[];
   const quizRows = (quizzes || []) as QuizRow[];
+  const mascotSettings = new Map(((settings || []) as TeacherSettingsRow[]).map((row) => [row.owner_id, row.quiz_mascot_enabled]));
   return {
     version: 1,
     subjects: subjectRows.map((subject) => ({
@@ -123,6 +138,7 @@ export async function loadPublicPracticeCatalog(): Promise<QuizCatalog> {
       code: subject.code || "",
       description: subject.description || "",
       sealLogoUrl: subject.seal_logo_url || "",
+      mascotEnabled: subject.mascot_enabled ?? mascotSettings.get(subject.owner_id || "") ?? true,
       quizzes: quizRows
         .filter((quiz) => quiz.subject_id === subject.id)
         .map((quiz) => ({
@@ -135,6 +151,7 @@ export async function loadPublicPracticeCatalog(): Promise<QuizCatalog> {
           description: quiz.description || "",
           status: "published" as const,
           practiceEnabled: true,
+          mascotEnabled: subject.mascot_enabled ?? mascotSettings.get(subject.owner_id || "") ?? true,
           version: quiz.version || (typeof quiz.metadata?.version === "number" ? quiz.metadata.version : 1),
           questions: quiz.questions || [],
         })),
