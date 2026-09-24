@@ -1,0 +1,297 @@
+{
+  "targetName": "Quiz Explainer Mascot",
+  "sourceImage": "C:\\Users\\Charm\\Pictures\\streaming\\1633818087896.png",
+  "preSpecAssessment": {
+    "objectClass": {
+      "primaryType": "stylized bipedal reptile mascot",
+      "primaryDomain": "character",
+      "formLanguage": ["organic", "character-like", "chibi", "smooth cartoon volumes"],
+      "structureKind": ["articulated assembly", "core body", "bendable tail", "rigid cap accessory", "effect emitter"],
+      "motionPotential": ["articulated limbs", "head nod", "body bounce", "tail sway", "flame pulse", "pointing gestures"],
+      "materialFamilies": ["smooth skin-like dielectric", "matte belly", "fabric-like cap", "metal trim", "emissive flame"],
+      "notes": "Observed from the supplied single-view cartoon. Rear volume and cap ornament are inferred; output is a stylized low-poly/procedural approximation."
+    },
+    "complexity": {
+      "tier": "complex",
+      "scores": {
+        "silhouetteComplexity": 3,
+        "componentCount": 3,
+        "hierarchyDepth": 3,
+        "repetitionDensity": 1,
+        "materialLayerCount": 3,
+        "localDetailDensity": 2,
+        "occlusionRisk": 2,
+        "actionReadinessNeed": 3
+      },
+      "estimatedCounts": {
+        "macroComponents": 5,
+        "mesoComponents": 14,
+        "microFeatureGroups": 10,
+        "materialLayers": 6,
+        "repetitionSystems": 3
+      },
+      "reasoning": [
+        "The tail/flame and peaked cap interrupt the silhouette, while animation requires stable pivots for all limbs, head and tail.",
+        "The smooth cartoon style limits micro-surface detail, but facial marks, claws, cap trim and flame layers are identity-critical."
+      ]
+    },
+    "specDepthDecision": {
+      "requiredDepth": "complex",
+      "minimumComponentLevels": [
+        "macro",
+        "meso",
+        "micro"
+      ],
+      "needsRepetitionSystems": true,
+      "needsMaterialLocalOverrides": true,
+      "needsMultipleReviewViews": true,
+      "needsActionReadyHierarchy": true,
+      "rationale": "Choose simple/moderate/complex/ultra-complex from observed structure, not from a hardcoded domain."
+    },
+    "unknownsToResolveBeforeImplementation": [
+      "Rear torso, head and cap geometry are hidden and will use symmetric palette-continuation.",
+      "Tail depth and exact posterior attachment are inferred from the visible sweep.",
+      "The cap emblem is simplified to a generic gold starburst because the source detail is too small and potentially real-world insignia."
+    ],
+    "detailInventory": {
+      "scanMethod": "component-zones",
+      "targetMinDetails": 10,
+      "note": "Enumerate every identity-defining small detail before authoring the spec. Each detail must map to a component.localFeatures entry or material.localOverrides entry, never prose only. Use forge/stage1_intake/build_detail_inventory.py to scan zones.",
+      "details": []
+    },
+    "anatomy": {
+      "applies": true,
+      "styleHeads": 3.46,
+      "proportions": {
+        "headUnit": 0.289,
+        "torso": 1.43,
+        "legs": 0.99,
+        "shoulderWidth": 1.54,
+        "hipWidth": 0.99
+      },
+      "pose": {
+        "type": "near-symmetric upright stance with forward-bent arms",
+        "jointAngles": {"neck": [0, 0, -4], "leftShoulder": [22, 0, 14], "rightShoulder": [22, 0, -14], "leftElbow": [68, 0, 0], "rightElbow": [68, 0, 0]}
+      },
+      "faceLandmarks": {
+        "eyeLine": 0.45,
+        "eyeSpacing": 0.35,
+        "noseBase": 0.60,
+        "mouthLine": 0.79,
+        "hairline": 0.0
+      },
+      "features": ["wide-flat-snout", "small-oval-eyes", "curved-smile", "short-bent-arms", "swept-flame-tail", "peaked-cap"],
+      "confidence": 0.71,
+      "note": "Only meaningful when objectClass.primaryDomain is character or hybrid. Set applies=true and fill from forge/stage1_intake/extract_landmarks.py. See grimoire/character/reconstruction.md and grimoire/character/likeness_maximization.md."
+    },
+    "sourceImage": "C:\\Users\\Charm\\Pictures\\streaming\\1633818087896.png"
+  },
+  "qualityContract": {
+    "qualityBar": "complex",
+    "definitionOfDone": [
+      "At the reference camera the model reads as the same friendly orange reptile mascot: oversized wide snout, pale belly, short bent arms, straight legs, swept flame-tail and oversized black/red/gold cap.",
+      "All explanation gestures preserve joint attachment and run at interactive frame rate in the quiz viewport.",
+      "The model is explicitly a stylized single-view reconstruction; hidden regions use symmetric continuation and are not represented as observed fact."
+    ],
+    "minimumSpecDepth": {
+      "macroComponents": 3,
+      "mesoComponents": 8,
+      "microFeatureGroups": 5,
+      "materialLayers": 3,
+      "repetitionSystems": 1,
+      "reviewViewpoints": 4
+    },
+    "featureGroups": [
+      {
+        "id": "overall-silhouette",
+        "name": "Overall silhouette and proportions",
+        "required": true,
+        "qualityCriteria": [
+          "Bounding shape, dominant curves, negative spaces, and scale relationships are explicitly described."
+        ],
+        "evidenceRefs": [
+          "full-object"
+        ],
+        "failureModes": [
+          "model reads as a generic placeholder instead of the reference object",
+          "major proportions are guessed without evidence"
+        ]
+      },
+      {
+        "id": "primary-structure",
+        "name": "Primary structure and hierarchy",
+        "required": true,
+        "qualityCriteria": [
+          "Major parts, joints, seams, contact points, and parent-child relationships are named before code generation."
+        ],
+        "evidenceRefs": [
+          "full-object"
+        ],
+        "failureModes": [
+          "large visible parts are merged into one mesh",
+          "component hierarchy is too shallow for the observed complexity"
+        ]
+      },
+      {
+        "id": "attachment-joint-correctness",
+        "name": "Attachment and joint correctness",
+        "required": true,
+        "qualityCriteria": [
+          "Every visible child appendage, branch, limb, handle, connector, tube, cable, horn, wing, leg, or hinged part has an attachment contract with parent socket, localStart/localEnd, contact type, embed/overlap, and gap tolerance."
+        ],
+        "evidenceRefs": [
+          "full-object"
+        ],
+        "failureModes": [
+          "child part root floats away from the parent",
+          "branch/limb/tube is centered in space instead of pivoting from its root",
+          "parent-child transform mixes world and local coordinates"
+        ]
+      },
+      {
+        "id": "surface-material-response",
+        "name": "Surface material response",
+        "required": true,
+        "qualityCriteria": [
+          "Albedo zones, roughness, normal/bump/displacement intent, cavity dirt, edge wear, and local overrides are specified where visible.",
+          "Important materials define independent albedo, roughness, height/normal, and AO responses instead of reusing one texture for unrelated PBR channels.",
+          "Surface response is decomposed into macro, meso, and micro frequency bands with scale and amplitude tied to object scale."
+        ],
+        "evidenceRefs": [
+          "full-object"
+        ],
+        "failureModes": [
+          "surface looks like flat plastic",
+          "local material variation is missing or not tied to image evidence"
+        ]
+      },
+      {
+        "id": "reference-lookdev",
+        "name": "Reference color, material, and lighting response",
+        "required": true,
+        "qualityCriteria": [
+          "Material-pass names the reference-derived albedo palette, roughness variation, tactile normal/bump/displacement response, and local masks.",
+          "When a source image is available, run reference PBR extraction and require confidence >= 0.7 before treating maps as implementation-ready.",
+          "Lighting-pass names key/fill/rim or environment light, exposure, tone mapping, background, and contact shadow behavior.",
+          "Neutral, grazing-angle, and reference-matched renders prove that surface relief survives relighting and is not painted into albedo."
+        ],
+        "evidenceRefs": [
+          "full-object"
+        ],
+        "failureModes": [
+          "model has acceptable shape but reads as flat shaded or plastic",
+          "colors are a generic average instead of reference-observed local color zones",
+          "lighting is evenly ambient and cannot reproduce the source value range"
+        ]
+      }
+    ],
+    "visualDeltaChecks": [
+      "silhouette and negative-space delta",
+      "component hierarchy depth delta",
+      "repetition density and distribution delta",
+      "material albedo/roughness/normal response delta",
+      "local feature placement and scale delta"
+    ],
+    "antiShallowSpecRules": [
+      "Do not proceed to code if qualityContract.qualityBar is unassessed.",
+      "Do not proceed to code if the spec only contains a root component for a moderate or complex object.",
+      "Do not proceed to code if required featureGroups are not represented by componentTree, materials, or repetitionSystems.",
+      "Do not proceed to code if visible local features are described only in prose and not attached to components/materials/evidenceRefs.",
+      "Do not proceed past structural-pass if attached child parts lack attachment.parentSocket, localStart, localEnd, embedDepth/overlap, and gapTolerance.",
+      "Do not pass material look-dev when albedo is reused as roughness, height, normal, or AO.",
+      "Do not pass material look-dev without macro, meso, and micro surface frequency bands for close-up materials.",
+      "Do not pass reference-fidelity material look-dev from a source image without usable referencePbr maps or an explicit documented limitation.",
+      "Do not patch a spec with extracted PBR maps when extraction confidence is below the target threshold unless the user explicitly accepts lower fidelity.",
+      "Do not place adjacent separate-geometry parts below 0.02 world-unit seam overlap (source: grimoire/build/geometry_patterns.md).",
+      "Do not satisfy raised or recessed relief, fasteners, or grip structure with a map alone when the feature affects form; use geometry or displacement (source: grimoire/build/geometry_patterns.md)."
+    ]
+  },
+  "authoringInstruction": "Fill observed object class, complexity reasoning, featureGroups, visualDeltaChecks, and unknowns before generating or implementing ObjectSculptSpec.",
+  "localSpecSearch": {
+    "collection": "core_3d",
+    "query": "Quiz Explainer Mascot stylized chibi reptile character procedural threejs smooth skin articulated tail flame accessory cap",
+    "index": {
+      "status": "hit",
+      "reason": "current",
+      "fingerprint": "ac4f0bc9028e34083dbb5d5531ae3df7699c8e7641d5f8e6d42e7492ea1be1d0"
+    },
+    "matches": [
+      {
+        "record_id": "core.shader-mapping-customshadermaterial-csm-weathering-hooks",
+        "file_path": "docs/raw/img2threejs-skill-dataset.json",
+        "heading": null,
+        "key_path": "categories.rendering_shader_mapping[1]",
+        "score": 5.143696932748,
+        "snippets": [
+          "Extension library exposing csm_* output variables to inject procedural noise/masks into an otherwise-standard lit material, used for dynamic tarnish/patina effects. Thư viện mở rộng cung cấp các biến đầu ra csm_* để chèn nhiễu/mặt nạ thủ tục vào ..."
+        ],
+        "source_refs": [
+          {
+            "path": "docs/raw/img2threejs-skill-dataset.json",
+            "heading": null,
+            "key_path": "categories.rendering_shader_mapping[1]"
+          }
+        ],
+        "evidence_refs": [
+          {
+            "kind": "source",
+            "ref": "docs/raw/img2threejs-skill-dataset.json",
+            "note": "img2threejs NotebookLM research distillation"
+          }
+        ]
+      },
+      {
+        "record_id": "core.shader-mapping-meshphysicalmaterial-core-pbr-fields",
+        "file_path": "docs/raw/img2threejs-skill-dataset.json",
+        "heading": null,
+        "key_path": "categories.rendering_shader_mapping[0]",
+        "score": 4.324973081348,
+        "snippets": [
+          "... Three.js material exposing direct scalar/map fields for the standard PBR channel set. Vật liệu Three.js cơ bản cung cấp trực tiếp các trường vô hướng/bản đồ cho bộ kênh PBR tiêu chuẩn. Recognition cues: Use whenever a static ..."
+        ],
+        "source_refs": [
+          {
+            "path": "docs/raw/img2threejs-skill-dataset.json",
+            "heading": null,
+            "key_path": "categories.rendering_shader_mapping[0]"
+          }
+        ],
+        "evidence_refs": [
+          {
+            "kind": "source",
+            "ref": "docs/raw/img2threejs-skill-dataset.json",
+            "note": "img2threejs NotebookLM research distillation"
+          }
+        ]
+      },
+      {
+        "record_id": "core.uv-strategy",
+        "file_path": "grimoire/glossary/3d_vocabulary.md",
+        "heading": "Geometry And Topology",
+        "key_path": null,
+        "score": 4.011652417667,
+        "snippets": [
+          "UV strategy can use generated procedural coordinates, cylindrical projection, triplanar-like mapping, or atlas-ready unwrapped regions."
+        ],
+        "source_refs": [
+          {
+            "path": "grimoire/glossary/3d_vocabulary.md",
+            "heading": "Geometry And Topology",
+            "key_path": null
+          }
+        ],
+        "evidence_refs": [
+          {
+            "kind": "source",
+            "ref": "grimoire/glossary/3d_vocabulary.md"
+          },
+          {
+            "kind": "notebooklm-research",
+            "ref": "notebooklm:4b03c2f9-8393-411f-b5b4-039ab9532843",
+            "note": "Validated generic schema vocabulary; numeric claims remain backed by local source_refs."
+          }
+        ]
+      }
+    ]
+  }
+}

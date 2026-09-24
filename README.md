@@ -16,6 +16,7 @@ Las salas y los votos se mantienen en canales Realtime y no se guardan como hist
 ## Tecnologías
 
 - React 19 y Vite
+- TypeScript con comprobación estricta
 - Supabase Auth, Postgres y Realtime
 - Cloudflare R2 para imágenes (opcional)
 - `qrcode`, `lucide-react`, `three.js` y Web Audio API
@@ -46,6 +47,7 @@ Comandos disponibles:
 ```bash
 npm run dev      # Servidor de desarrollo Vite
 npm run lint     # Análisis estático con Oxlint
+npm run typecheck # Comprobación de tipos TypeScript
 npm run build    # Compilación de producción en dist/
 npm run preview  # Vista local de la compilación
 ```

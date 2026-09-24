@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "references": [
+    {
+      "id": "source-front",
+      "path": "C:/Users/Charm/Pictures/streaming/1633818087896.png",
+      "width": 505,
+      "height": 556,
+      "cameraRole": "semantic-front-three-quarter",
+      "admission": "conditional-semantic-only",
+      "pixelGroundTruth": false,
+      "reason": "The deterministic admission gate measured foregroundCoverage=1.0 because the textured background reaches every border. The image remains usable for observed proportions, palette and feature inventory, but is not used for silhouette-IoU or pixel-perfect scoring.",
+      "hiddenRegionConfidence": {
+        "front": 0.9,
+        "side": 0.42,
+        "rear": 0.2,
+        "capRear": 0.15,
+        "tailDepth": 0.35
+      }
+    }
+  ]
+}
