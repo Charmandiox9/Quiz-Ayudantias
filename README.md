@@ -1,4 +1,4 @@
-# Quiz Ayudantías — Ingeniería de Software
+# Quizzes Ayudantías
 
 Aplicación web para crear y realizar quizzes durante ayudantías. Incluye un panel docente para administrar asignaturas y quizzes, una vista de proyección para dirigir sesiones, acceso de estudiantes desde el celular y práctica individual.
 
