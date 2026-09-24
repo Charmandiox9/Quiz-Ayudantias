@@ -1,227 +1,130 @@
-# Quiz Ayudantía Ingeniería de Software
+# Quiz Ayudantías — Ingeniería de Software
 
-Plataforma web interactiva para la ejecución de quizzes formativos, talleres prácticos y dinámicas de evaluación en tiempo real durante las sesiones de ayudantía de **Ingeniería de Software (Semestre 2026-02)**.
+Aplicación web para crear y realizar quizzes durante ayudantías. Incluye un panel docente para administrar asignaturas y quizzes, una vista de proyección para dirigir sesiones, acceso de estudiantes desde el celular y práctica individual.
 
-El sistema fue diseñado bajo principios rigurosos de **Clean Code**, **SOLID**, **DevSecOps** y en estricto cumplimiento con la **Ley N° 21.719 sobre Protección de Datos Personales de Chile**.
+## Funciones
 
----
+- **Docencia:** acceso mediante enlace de un solo uso enviado por correo. Solo las cuentas autorizadas en `teacher_access` pueden administrar su catálogo.
+- **Catálogo:** creación de asignaturas y quizzes, edición de preguntas, publicación y archivo. El editor admite selección única o múltiple, verdadero/falso, respuesta corta y ordenamiento.
+- **Sesiones en vivo:** el docente inicia una sala y comparte su código o QR. Los estudiantes se unen con un apodo; las preguntas, respuestas y resultados se transmiten por Supabase Realtime.
+- **Práctica individual:** quizzes locales de ejemplo y quizzes remotos habilitados para práctica pública.
+- **Tarjetas de logro:** al completar un quiz se puede generar y descargar una tarjeta como imagen.
+- **Imágenes:** el editor comprime imágenes en el navegador y puede cargarlas a Cloudflare R2 mediante una URL temporal emitida por la API del proyecto.
 
-## Tecnologías Utilizadas
+Las salas y los votos se mantienen en canales Realtime y no se guardan como historial de sesión. El catálogo docente se almacena en Supabase; las imágenes cargadas a R2 usan URLs públicas. Consulta la configuración de estos servicios antes de publicar la aplicación.
 
-### Frontend y Renderizado
-[![React](https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite_8-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![JavaScript](https://img.shields.io/badge/JavaScript_ES6+-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/es/docs/Web/JavaScript)
-[![HTML5 Canvas](https://img.shields.io/badge/HTML5_Canvas_2D-E34F26?style=for-the-badge&logo=html5&logoColor=white)](https://developer.mozilla.org/es/docs/Web/API/Canvas_API)
-[![CSS3](https://img.shields.io/badge/CSS3_Vanilla-1572B6?style=for-the-badge&logo=css3&logoColor=white)](https://developer.mozilla.org/es/docs/Web/CSS)
-[![Lucide Icons](https://img.shields.io/badge/Lucide_Icons-F56565?style=for-the-badge&logo=feather&logoColor=white)](https://lucide.dev/)
+## Tecnologías
 
-### Backend, Red y Tiempo Real
-[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
-[![WebSockets](https://img.shields.io/badge/WebSockets-Realtime_Broadcast-010101?style=for-the-badge&logo=socketdotio&logoColor=white)](https://developer.mozilla.org/es/docs/Web/API/WebSockets_API)
-[![QR Code](https://img.shields.io/badge/QRCode_Generator-2563EB?style=for-the-badge&logo=qrcode&logoColor=white)](https://github.com/soldair/node-qrcode)
+- React 19 y Vite
+- Supabase Auth, Postgres y Realtime
+- Cloudflare R2 para imágenes (opcional)
+- `qrcode`, `lucide-react`, `three.js` y Web Audio API
+- Oxlint
 
-### Audio y Síntesis Procedural
-[![Web Audio API](https://img.shields.io/badge/Web_Audio_API-Procedural_Synthesis-4F46E5?style=for-the-badge&logo=soundcharts&logoColor=white)](https://developer.mozilla.org/es/docs/Web/API/Web_Audio_API)
+## Requisitos
 
-### Calidad, Seguridad y Normativa
-[![Oxlint](https://img.shields.io/badge/Oxlint-0_Warnings_/_0_Errors-0EA5E9?style=for-the-badge&logo=oxc&logoColor=white)](https://oxc.rs/)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-[![Ley N° 21.719](https://img.shields.io/badge/Ley_N°_21.719-Chile_Data_Privacy-B91C1C?style=for-the-badge&logo=shield&logoColor=white)](https://www.bcn.cl/)
-[![GitHub](https://img.shields.io/badge/GitHub-Marton1123-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Marton1123)
+- Node.js 20.19+ o 22.12+ y npm (requisito de Vite 8)
+- Un proyecto Supabase para habilitar acceso docente, catálogo compartido y salas en tiempo real
+- (Opcional) Vercel y Cloudflare R2 para la API de carga de imágenes
 
----
+## Desarrollo local
 
-## 1. Características Principales
-
-* **3 Modos de Operación Integrados**:
-  * **Modo Docente / Proyector**: Pantalla principal para proyección en aula con temporizador circular animado, gráfico de barras de votación en tiempo real (estilo Kahoot/Mentimeter), revelación de respuesta con fundamento técnico y podio con medallas.
-  * **Unirse desde el Celular**: Interfaz móvil táctil y accesible para que los estudiantes voten las alternativas (A, B, C, D) mediante WebSockets en tiempo real sin requerir instalación previa ni cuentas de usuario.
-  * **Modo Práctica Individual (Solo)**: Permite a los estudiantes responder las preguntas a su propio ritmo con retroalimentación inmediata, justificación teórica, carrusel de diagnóstico de errores y control de precisión/puntaje.
-* **Sistema de Recompensas y Certificación de Dominio**:
-  * **Sobre de Cera 3D Auténtico**: Animación de apertura de sobre con solapa triangular en perspectiva 3D y sello de cera oficial en alta resolución (`seal_logo.jpg`).
-  * **Tarjeta Holográfica 3D**: Física de inclinación proporcional a la relación de aspecto (máximo 11° vertical, 13° horizontal), amortiguación suave (`cubic-bezier`), aceleración por hardware (`will-change: transform`) y shader reactivo de foil arcoíris con bisel especular.
-  * **Síntesis de Audio Procedural (Web Audio API)**: Motor de audio sin dependencias externas pesadas con eventos táctiles discretos:
-    * Ruptura de cera al presionar el sello (`playTear`).
-    * Acorde celestial de revelación y destello dorado (`playReveal`).
-    * Succión y absorción física hacia el botón (`playSuction`).
-    * Llegada y retorno táctil de la carta al centro (`playCardReturn`).
-    * Silencio durante el desplazamiento del cursor para garantizar una interacción visual limpia y sin fatiga auditiva.
-  * **Exportación en Canvas de Ultra Alta Definición (1792 x 2400)**: Renderizado de la carta completa en formato PNG sin pérdida, estampando de forma discreta dentro del marco inferior el número de serie criptográfico (`#SOLID-XXXX-XXXX` / `#UML-XXXX-XXXX`), el curso, el semestre y el isotipo vectorial oficial de GitHub junto a `@Marton1123`.
-  * **Servicio de Auditoría y Persistencia de Certificados (`certificateService.js`)**: Registro de descargas en almacenamiento local y en tabla remota de Supabase (`card_downloads`) sin recolectar ningún dato personal sensible.
-* **Catálogo Modular de Ayudantías**:
-  * **Ayudantía N°2**: Modelamiento Conceptual y Diagramas UML (Casos de Uso, Clases, Actividades, Secuencia, Detección de Antipatrones).
-  * **Ayudantía N°3**: Principios SOLID de Diseño Orientado a Objetos (Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion).
-* **Cumplimiento Legal (Ley N° 21.719 - Chile)**: Privacidad desde el diseño y por defecto, minimización de datos mediante alias efímeros, sin persistencia de datos sensibles y sin cookies de rastreo comercial.
-
----
-
-## 2. Arquitectura de Software
-
-El proyecto aplica una separación estricta de responsabilidades (SoC) y principios SOLID para garantizar mantenibilidad y extensibilidad:
-
-```text
-src/
-|-- config/              # Parámetros globales y definición legal de privacidad
-|   |-- constants.js     # Tiempos, colores de alto contraste y fases del juego
-|   |-- privacyPolicy.js # Marco normativo Ley 21.719 de Chile
-|-- services/            # Capa de integración, audio y persistencia (DIP)
-|   |-- supabaseClient.js# Conexión segura con tolerancia a modo offline
-|   |-- realtimeService.js# Abstracción de canales broadcast WebSockets
-|   |-- audioService.js  # Motor procedural de audio Web Audio API
-|   |-- certificateService.js# Auditoría seudónima de descargas (Ley 21.719)
-|-- utils/               # Sanitización y utilidades de seguridad (DevSecOps)
-|   |-- sanitizers.js    # Prevención XSS y generación de alias anónimos
-|   |-- session.js       # Manejo de sesiones locales temporales
-|-- data/                # Módulos de contenido desacoplados (Open/Closed)
-|   |-- index.js         # Catálogo maestro extensible de ayudantías
-|   |-- ay02_uml.js      # Banco de 16 preguntas de Modelamiento UML
-|   |-- ay03_solid.js    # Banco de 16 preguntas de Principios SOLID
-|-- components/          # Componentes visuales genéricos y reutilizables
-|   |-- common/          # Button, Card, Badge, PrivacyNotice, QRCodeDisplay, RewardCard
-|   |-- quiz/            # TimerRing, VoteBars, Leaderboard, QuestionCard, MistakesCarousel
-|-- modes/               # Orquestadores de vistas según rol
-|   |-- HubScreen.jsx    # Menú principal y selector de ayudantía
-|   |-- HostScreen.jsx   # Panel de control para el proyector
-|   |-- PlayerScreen.jsx # Interfaz para el celular del alumno
-|   |-- SoloScreen.jsx   # Práctica autónoma individual
-|   |-- FastJoinScreen.jsx# Acceso directo mediante escaneo de código QR
-|-- App.jsx              # Enrutador principal de la aplicación
-|-- index.css            # Sistema de diseño y tokens visuales (Navy / Slate / Amber)
-public/
-|-- assets/              # Ilustraciones de alta resolución y sellos oficiales
-|   |-- ay02_uml.png     # Ilustración de recompensa Ayudantía 2
-|   |-- ay03_solid.png   # Ilustración de recompensa Ayudantía 3
-|   |-- seal_logo.jpg    # Sello de cera oficial 3D
-|   |-- favicon_hi_res.jpg # Ícono de aplicación en alta resolución
-supabase/
-|-- schema_card_downloads.sql # Esquema SQL seguro con RLS para auditoría
+```bash
+npm install
 ```
 
-### Principios SOLID Aplicados:
-* **Single Responsibility (SRP)**: Cada componente resuelve una sola necesidad visual o lógica (`TimerRing` calcula y anima el tiempo; `VoteBars` proyecta la distribución de votos; `RewardCard` gestiona la experiencia física de certificación; `audioService` encapsula la síntesis Web Audio).
-* **Open/Closed (OCP)**: Para incorporar una nueva ayudantía (ejemplo: Ayudantía 4 de Patrones de Diseño GoF), se añade el archivo en `src/data/` y se enlaza en `src/data/index.js` sin modificar el motor de evaluación ni las vistas.
-* **Liskov Substitution (LSP)**: Todos los módulos de contenido en `src/data/` cumplen la misma firma estructural (`id`, `title`, `badge`, `questions`), permitiendo que el Hub y los modos de juego operen polimórficamente sobre cualquiera de ellos.
-* **Interface Segregation (ISP)**: Los componentes genéricos exponen props especializadas y opcionales, evitando que componentes de presentación dependan de estructuras complejas no requeridas.
-* **Dependency Inversion (DIP)**: Los componentes de interfaz interactúan con servicios abstractos (`RealtimeQuizService`, `certificateService`), desacoplados del cliente de base de datos o de APIs externas directas.
+Copia `.env.example` a `.env` y configura las variables públicas de Supabase. Sin ellas, la app usa el catálogo de ejemplo integrado para el modo local; las funciones que requieren Supabase no estarán disponibles.
 
----
-
-## 3. Seguridad y DevSecOps
-
-* **Protección contra XSS y Sanitización**: La función `sanitizeNickname` limpia etiquetas HTML, caracteres de inyección y restringe la longitud a 15 caracteres como máximo.
-* **Gestión Segura de Credenciales**: Las variables de entorno (`VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`) están configuradas para consumir claves anónimas públicas protegidas por políticas de seguridad a nivel de fila (RLS). No existen tokens de servicio ni credenciales maestras en el cliente.
-* **Auditoría de Dependencias y Linting**:
-  * 0 vulnerabilidades conocidas en análisis de dependencias (`npm audit`).
-  * 0 errores y 0 advertencias en análisis estático continuo (`npx oxlint`).
-* **Higiene de Código Profesional**: Código limpio sin emojis, comentarios técnicos explicativos estrictamente necesarios y control de tipos implícito mediante validaciones robustas.
-
----
-
-## 4. Protección de Datos Personales (Ley N° 21.719 - Chile)
-
-Esta plataforma implementa técnicamente los principios fundamentales de la nueva ley de protección de datos chilena:
-
-1. **Minimización de Datos**: No se solicita, procesa ni almacena RUT, nombre completo, correo institucional, número telefónico ni identificadores biométricos.
-2. **Uso Exclusivo de Alias Efímeros**: Los estudiantes participan mediante un apodo de libre elección o un alias aleatorio generado localmente (ej: `Estudiante-4821`).
-3. **Limitación de Conservación**: La información de la sesión en tiempo real existe únicamente en la memoria volátil del canal de comunicación y se destruye al cerrar la sala.
-4. **Seudonimización Criptográfica de Certificados**: Las descargas de tarjetas de recompensa registran únicamente un número de serie aleatorio generado criptográficamente (`#SOLID-XXXX-XXXX`) junto con el puntaje y la precisión porcentual obtenida, garantizando que ningún registro pueda asociarse a una persona natural identificable.
-5. **Sin Rastreos Invasivos**: No se emplean cookies publicitarias ni herramientas de telemetría externa.
-
----
-
-## 5. Instalación y Ejecución Local
-
-### Prerrequisitos:
-* Node.js v18 o superior.
-* Gestor de paquetes npm.
-
-### Pasos:
 ```bash
-# 1. Clonar el repositorio
-git clone https://github.com/Marton1123/Quiz-Ayudantia-Ingenieria-Software.git
-cd Quiz-Ayudantia-Ingenieria-Software
-
-# 2. Instalar dependencias
-npm install
-
-# 3. Configurar variables de entorno (opcional para sincronización en la nube Supabase)
-cp .env.example .env
-# Editar .env con tus credenciales de Supabase si deseas sincronización en línea
-
-# 4. Iniciar el servidor de desarrollo
 npm run dev
 ```
 
-La aplicación estará disponible en: **http://localhost:5173/**
+Vite muestra la URL local, normalmente `http://localhost:5173`.
 
----
-
-## 6. Verificación de Calidad y Construcción
-
-Para ejecutar las verificaciones de código y compilar el paquete de producción:
+Comandos disponibles:
 
 ```bash
-# Análisis estático de código (0 advertencias, 0 errores)
-npx oxlint
-
-# Compilación optimizada para producción
-npm run build
+npm run dev      # Servidor de desarrollo Vite
+npm run lint     # Análisis estático con Oxlint
+npm run build    # Compilación de producción en dist/
+npm run preview  # Vista local de la compilación
 ```
 
----
+## Variables de entorno
 
-## 7. Despliegue en la Nube (Vercel / Netlify)
+Las variables requeridas dependen de las funciones que vayas a usar:
 
-1. Conectar el repositorio de GitHub en Vercel o Netlify.
-2. Configurar las variables de entorno en el panel del proyecto:
-   * `VITE_SUPABASE_URL`
-   * `VITE_SUPABASE_ANON_KEY`
-3. Comando de construcción: `npm run build`
-4. Directorio de salida: `dist`
+| Variable | Uso |
+| --- | --- |
+| `VITE_SUPABASE_URL` | URL del proyecto Supabase para el navegador |
+| `VITE_SUPABASE_ANON_KEY` | Clave pública anon/publishable de Supabase |
+| `VITE_APP_URL` | URL de retorno de autenticación; usa el origen actual si se omite |
+| `SUPABASE_URL` | URL de Supabase para la función de carga en Vercel |
+| `SUPABASE_ANON_KEY` | Clave pública usada por la función para validar la sesión |
+| `R2_ACCOUNT_ID` | Identificador de la cuenta Cloudflare |
+| `R2_ACCESS_KEY_ID` | Identificador de la clave de API R2 |
+| `R2_SECRET_ACCESS_KEY` | Secreto de la clave de API R2 |
+| `R2_BUCKET_NAME` | Bucket destino |
+| `R2_PUBLIC_BASE_URL` | Dominio HTTPS público del bucket o dominio personalizado |
 
-Con este único despliegue, la URL será permanente y válida para todas las ayudantías del semestre.
+Las credenciales de R2 solo se configuran en el entorno servidor de Vercel; nunca deben llevar el prefijo `VITE_`. No uses una clave Supabase `service_role` en el cliente.
 
----
+## Configuración de Supabase
 
-## 8. Cómo Agregar una Nueva Ayudantía
+Ejecuta las migraciones en orden desde el SQL Editor de Supabase:
 
-1. Crear el archivo `src/data/ay04_patrones.js` definiendo la estructura estándar:
-```javascript
-export const ay04Patrones = {
-  id: "ay04",
-  code: "PATRONES",
-  title: "Ayudantía N°4: Patrones de Diseño GoF",
-  badge: "Patrones GoF",
-  course: "Ingeniería de Software",
-  cardImage: "/assets/ay04_patrones.png",
-  questions: [
-    {
-      id: 1,
-      topic: "Creacionales",
-      q: "¿Cuál es el propósito principal del patrón Factory Method?",
-      opts: [
-        "Definir una interfaz para crear un objeto delegando la instanciación a las subclases.",
-        "Garantizar que una clase tenga solo una instancia en memoria.",
-        "Convertir la interfaz de una clase en otra interfaz esperada por los clientes.",
-        "Separar la construcción de un objeto complejo de su representación final."
-      ],
-      ans: 0,
-      exp: "Factory Method define una interfaz para la creación de objetos, permitiendo que las subclases decidan qué clase instanciar."
-    }
-  ]
-};
+1. `supabase/migrations/20260920000100_teacher_quiz_catalog.sql` crea el catálogo docente y el control de acceso.
+2. `supabase/migrations/20260921000100_subject_seal_logo.sql` agrega el sello opcional por asignatura.
+3. `supabase/migrations/20260921000200_public_practice_quizzes.sql` habilita la lectura pública de quizzes autorizados para práctica.
+
+Luego:
+
+1. Desactiva el registro público en Supabase Auth y configura la URL de producción como **Site URL**.
+2. Agrega las URL local y de producción a **URL Configuration → Redirect URLs**.
+3. Crea o invita la cuenta docente desde Supabase Auth.
+4. Autoriza su cuenta en `teacher_access`, reemplazando el correo:
+
+   ```sql
+   insert into public.teacher_access (user_id)
+   select id from auth.users where lower(email) = lower('profesor@universidad.cl')
+   on conflict (user_id) do nothing;
+   ```
+
+5. Configura `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y `VITE_APP_URL`. En Vercel configura también `SUPABASE_URL` y `SUPABASE_ANON_KEY` para la API. Reinicia Vite después de cambiar variables locales.
+
+La configuración detallada de RLS, Auth y almacenamiento está en [supabase/README.md](supabase/README.md).
+
+## Carga de imágenes con Cloudflare R2
+
+La carga usa la función `api/images/upload-url.js`, disponible como función serverless en Vercel. El servidor verifica el token Supabase y que la cuenta pertenezca a `teacher_access` antes de emitir una URL de carga temporal. El endpoint no se ejecuta con `npm run dev`; para desarrollo local con la API usa `vercel dev`.
+
+Configura las cinco variables `R2_*` de la tabla en Vercel. El bucket debe permitir lectura pública mediante `R2_PUBLIC_BASE_URL` (dominio personalizado recomendado). Configura CORS en R2 para permitir los orígenes local y de producción, los métodos `GET` y `PUT`, y la cabecera `Content-Type`. El tamaño máximo aceptado es 220 KB por imagen WebP. Después de cambiar variables, vuelve a desplegar.
+
+## Despliegue
+
+El proyecto se puede desplegar en Vercel como aplicación Vite. Usa:
+
+- Comando de instalación: `npm install`
+- Comando de compilación: `npm run build`
+- Directorio de salida: `dist`
+
+Configura las variables de entorno correspondientes a Supabase y, si habilitas carga de imágenes, las variables de R2. La carpeta `api/` contiene la función serverless de Vercel.
+
+## Estructura del proyecto
+
+```text
+api/images/                 Función Vercel para preparar cargas a R2
+public/assets/              Recursos estáticos e imágenes incluidas
+src/components/common/      Controles y componentes compartidos
+src/components/quiz/        Componentes de preguntas, tiempo y resultados
+src/config/                 Constantes y aviso de privacidad
+src/data/                   Quizzes de ejemplo y catálogo local
+src/modes/                  Hub, panel docente, proyector, jugador y práctica
+src/services/               Integración con Supabase, Realtime y certificados
+src/utils/                  Sesiones, URLs, respuestas e imágenes
+supabase/migrations/         Esquema y políticas de base de datos
 ```
 
-2. Registrar la ayudantía en `src/data/index.js`:
-```javascript
-import { ay04Patrones } from "./ay04_patrones.js";
+## Privacidad y datos
 
-export const AYUDANTIAS = [
-  ay02Uml,
-  ay03Solid,
-  ay04Patrones,
-];
-```
-
-3. La nueva ayudantía aparecerá automáticamente en el Hub principal, completamente funcional para el modo proyector, unirse desde celular y práctica individual, incluyendo su propia carta de recompensa certificada.
+Los estudiantes se unen con un apodo y no necesitan una cuenta. La app conserva información de sesión local para permitir que un jugador vuelva a su sala desde el mismo dispositivo. Los votos y el estado en vivo se transmiten por Realtime; el proyecto no guarda un historial de las salas. Los quizzes del catálogo docente se guardan en Supabase y las imágenes subidas a R2 son accesibles mediante su URL pública. Evita incluir datos personales en apodos, preguntas o imágenes.
