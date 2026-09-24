@@ -8,11 +8,11 @@ export const PRIVACY_POLICY = {
     },
     {
       title: "Alias Efimeros",
-      description: "La participacion se realiza mediante un apodo de libre eleccion que no requiere asociacion con la identidad real del estudiante.",
+      description: "La participacion se realiza mediante un apodo de libre eleccion y no requiere asociar la cuenta del estudiante con su identidad real. Al completar un quiz en vivo, el apodo, el puntaje y los aciertos se conservan en el historial privado del docente.",
     },
     {
       title: "Limitacion del Plazo de Conservacion",
-      description: "Los votos y puntajes de la sesion residen unicamente en la memoria volatil del canal de comunicacion en tiempo real y son purgados al terminar la actividad.",
+      description: "El docente puede eliminar sesiones desde el historial. La clasificación final se conserva en Supabase hasta que el docente la elimine; no se guardan las respuestas individuales ni el identificador del dispositivo.",
     },
     {
       title: "Sin Rastreo Comercial",

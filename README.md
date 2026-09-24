@@ -11,7 +11,7 @@ Aplicación web para crear y realizar quizzes durante ayudantías. Incluye un pa
 - **Tarjetas de logro:** al completar un quiz se puede generar y descargar una tarjeta como imagen.
 - **Imágenes:** el editor comprime imágenes en el navegador y puede cargarlas a Cloudflare R2 mediante una URL temporal emitida por la API del proyecto.
 
-Las salas y los votos se mantienen en canales Realtime y no se guardan como historial de sesión. El catálogo docente se almacena en Supabase; las imágenes cargadas a R2 usan URLs públicas. Consulta la configuración de estos servicios antes de publicar la aplicación.
+Las salas y los votos se transmiten por canales Realtime. Al completar un quiz en vivo, el docente autenticado puede consultar el historial de sesiones y la clasificación final desde el Hub. El catálogo y el historial se almacenan en Supabase; las imágenes cargadas a R2 usan URLs públicas. Consulta la configuración de estos servicios antes de publicar la aplicación.
 
 ## Tecnologías
 
@@ -78,6 +78,7 @@ Ejecuta las migraciones en orden desde el SQL Editor de Supabase:
 1. `supabase/migrations/20260920000100_teacher_quiz_catalog.sql` crea el catálogo docente y el control de acceso.
 2. `supabase/migrations/20260921000100_subject_seal_logo.sql` agrega el sello opcional por asignatura.
 3. `supabase/migrations/20260921000200_public_practice_quizzes.sql` habilita la lectura pública de quizzes autorizados para práctica.
+4. `supabase/migrations/20260924000100_quiz_session_history.sql` agrega el historial privado de sesiones completadas.
 
 Luego:
 
@@ -129,4 +130,4 @@ supabase/migrations/         Esquema y políticas de base de datos
 
 ## Privacidad y datos
 
-Los estudiantes se unen con un apodo y no necesitan una cuenta. La app conserva información de sesión local para permitir que un jugador vuelva a su sala desde el mismo dispositivo. Los votos y el estado en vivo se transmiten por Realtime; el proyecto no guarda un historial de las salas. Los quizzes del catálogo docente se guardan en Supabase y las imágenes subidas a R2 son accesibles mediante su URL pública. Evita incluir datos personales en apodos, preguntas o imágenes.
+Los estudiantes se unen con un apodo y no necesitan una cuenta. La app conserva información de sesión local para permitir que un jugador vuelva a su sala desde el mismo dispositivo. Los votos y el estado en vivo se transmiten por Realtime. El historial conserva el quiz, la sala, la fecha y la clasificación con apodos, puntajes y aciertos; no guarda identificadores de dispositivo ni respuestas individuales. Solo el docente autorizado puede leerlo. Las imágenes subidas a R2 son accesibles mediante su URL pública. Evita incluir datos personales en apodos, preguntas o imágenes.

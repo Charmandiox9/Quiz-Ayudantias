@@ -95,3 +95,22 @@
 | Timestamp | Error | Attempt | Resolution |
 |-----------|-------|---------|------------|
 | — | — | — | — |
+
+## Session: 2026-09-24 — Historial de sesiones
+
+### Phase 1: Descubrimiento y alcance
+- **Status:** complete
+- Confirmé que las sesiones actuales son efímeras en Realtime y que Host mantiene la clasificación final.
+- Alcance inicial: guardar sesiones completadas con snapshots de quiz/asignatura y clasificación; acceso privado para la cuenta docente; no conservar ID de dispositivo ni detalle por respuesta.
+
+### Phase 2: Persistencia y consulta
+- **Status:** complete
+- Añadí migración Supabase con políticas RLS de lectura, inserción y borrado para el docente autorizado.
+- Añadí guardado de resultados al terminar el quiz y una vista del historial en el Hub, con clasificación expandible y borrado por sesión.
+- Guardé snapshots de quiz/asignatura, fecha, código de sala y clasificación; excluí identificadores de dispositivo y respuestas individuales.
+
+### Phase 3: Integración y verificación
+- **Status:** complete
+- Documenté la nueva migración en README y actualicé el aviso de privacidad sobre los datos retenidos y la eliminación manual.
+- `npm run typecheck`, `npm run lint`, `npm run build` y `git diff --check` pasan. Vite mantiene su advertencia existente por bundles mayores a 500 kB.
+- **Pendiente de entorno:** ejecutar `supabase/migrations/20260924000100_quiz_session_history.sql` en el SQL Editor de producción; no se ejecutó una migración remota desde este workspace.

@@ -9,6 +9,7 @@ import { BookOpen, AlertCircle, Check } from 'lucide-react';
 import { OPTION_LABELS, OPTION_COLORS } from '../../config/constants';
 import { formatAnswerText, getAnswerIndices, isAnswerCorrect, isMultipleSelect, isOrdering, isShortAnswer } from '../../utils/answers';
 import type { QuizQuestion, SelectedAnswer } from '../../types';
+import { sileo } from 'sileo';
 
 interface QuestionCardProps {
   question: QuizQuestion | null | undefined;
@@ -50,6 +51,16 @@ export default function QuestionCard({
       // The preference is optional when browser storage is unavailable.
     }
   }, [mascotEnabled]);
+
+  const toggleMascot = () => {
+    const nextEnabled = !mascotEnabled;
+    setMascotEnabled(nextEnabled);
+    if (nextEnabled) {
+      sileo.success({ title: 'Ayudante 3D activado' });
+    } else {
+      sileo.info({ title: 'Ayudante 3D desactivado' });
+    }
+  };
 
   if (!question) return null;
   const selectedIndices = Array.isArray(selectedAnswerIndex)
@@ -338,7 +349,7 @@ export default function QuestionCard({
                 type="button"
                 className="quiz-mascot-toggle"
                 aria-pressed={mascotEnabled}
-                onClick={() => setMascotEnabled((enabled) => !enabled)}
+                onClick={toggleMascot}
               >
                 Ayudante 3D: {mascotEnabled ? 'activado' : 'desactivado'}
               </button>

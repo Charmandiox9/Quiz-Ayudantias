@@ -64,3 +64,16 @@ Complete — listo para configurar Supabase
 | Error | Attempt | Resolution |
 |-------|---------|------------|
 | None | — | — |
+
+## Phase 6: Historial de sesiones — complete
+- [x] Añadir tabla Supabase con RLS para sesiones completadas y resultados finales.
+- [x] Guardar una sesión al terminar un quiz, solo para el docente autenticado.
+- [x] Añadir vista de historial en el Hub con fecha, quiz, sala y clasificación.
+- [x] Documentar y validar la nueva migración y sus límites de privacidad.
+- **Status:** complete — la migración SQL aún debe ejecutarse en el proyecto Supabase de producción.
+
+### Decisions for Phase 6
+- Registrar por ahora solo sesiones completadas; una salida temprana o abandono no se agrega al historial.
+- Guardar la clasificación final con apodos, puntaje y respuestas correctas; no guardar identificadores de dispositivo ni respuestas individuales.
+- El historial requiere Supabase y cuenta docente autorizada; el modo local sigue siendo efímero.
+- El docente puede eliminar sesiones individuales; el historial se conserva hasta que lo elimine.

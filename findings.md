@@ -58,3 +58,12 @@
 - `src/services/realtimeService.js`
 - `src/data/index.js`
 - `supabase/schema_card_downloads.sql`
+
+## Phase 6 Findings: Historial de sesiones
+- Las salas en vivo solo existen en canales Supabase Realtime; no hay tabla ni historial actualmente.
+- `HostScreen` tiene la lista final de participantes con apodo, puntaje y respuestas correctas; termina una sesión en `handleNextQuestion` al completar la última pregunta.
+- `App` solo muestra el Hub de administración a cuentas autenticadas autorizadas cuando Supabase está configurado; la pantalla Host recibe el quiz y el código de sala.
+- Para evitar conservar identificadores de dispositivo o respuestas individuales en la primera versión, el historial almacenará el podio final y metadatos de sesión.
+- La tabla tendrá snapshot de título/asignatura y no dependerá de una FK al quiz: así el historial sobrevive si el quiz se archiva o elimina.
+- El historial será privado con RLS por `owner_id`; el modo local sin Supabase no tendrá persistencia compartida.
+- El historial puede ser eliminado por el docente sesión por sesión; el aviso de privacidad informa que apodos, puntajes y aciertos se mantienen hasta su eliminación.

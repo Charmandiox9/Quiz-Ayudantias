@@ -13,7 +13,9 @@ import TimerRing from "../components/quiz/TimerRing";
 import { answerLabels, formatAnswerText, isAnswerCorrect, isOrdering, isShortAnswer, responseToOptionIndices, shuffleIndices } from "../utils/answers";
 import { getAppUrl } from "../utils/appUrl";
 import { getQuestionTimeLimitSeconds } from "../utils/quizTime";
+import { saveCompletedSession } from "../services/sessionHistoryService";
 import type { GamePhase, LiveQuestionPayload, PlayerScore, QuizDefinition, QuizQuestion } from "../types";
+import { sileo } from "sileo";
 import {
   ArrowLeft,
   ArrowRight,
@@ -50,7 +52,7 @@ function getQuestionOrder(question: QuizQuestion): number[] {
   return isOrdering(question) ? shuffleIndices(length) : Array.from({ length }, (_, index) => index);
 }
 
-export default function HostScreen({ ayudantia, roomCode, onExit }: { ayudantia: QuizDefinition; roomCode: string; onExit: () => void }) {
+export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { ayudantia: QuizDefinition; roomCode: string; onExit: () => void; ownerId?: string }) {
   const [phase, setPhase] = useState<GamePhase>(GAME_PHASES.LOBBY);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [players, setPlayers] = useState<PlayerScore[]>([]);
@@ -69,6 +71,9 @@ export default function HostScreen({ ayudantia, roomCode, onExit }: { ayudantia:
   const questionStartTimeRef = useRef(0);
   const answeredPlayersRef = useRef(new Set<string>());
   const questionEndedRef = useRef(false);
+  const sessionStartedAtRef = useRef<string | null>(null);
+  const historySavedRef = useRef(false);
+  const historySaveInProgressRef = useRef(false);
 
   const currentQuestion = ayudantia.questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === ayudantia.questions.length - 1;
@@ -280,6 +285,8 @@ export default function HostScreen({ ayudantia, roomCode, onExit }: { ayudantia:
   }, [roomCode, ayudantia.questions.length, ayudantia.defaultTimerSeconds]);
 
   const handleStartGame = () => {
+    sessionStartedAtRef.current = new Date().toISOString();
+    historySavedRef.current = false;
     answeredPlayersRef.current.clear();
     questionEndedRef.current = false;
     setPlayers((previous) => {
@@ -335,6 +342,24 @@ export default function HostScreen({ ayudantia, roomCode, onExit }: { ayudantia:
       audioService.stopMusic();
       setPhase(GAME_PHASES.FINISHED);
       const perfectPlayers = playersRef.current.filter((player) => player.correctAnswersCount === ayudantia.questions.length);
+      if (ownerId && sessionStartedAtRef.current && !historySavedRef.current && !historySaveInProgressRef.current) {
+        historySaveInProgressRef.current = true;
+        void saveCompletedSession({
+          ownerId,
+          quiz: ayudantia,
+          roomCode,
+          startedAt: sessionStartedAtRef.current,
+          players: playersRef.current,
+        }).then(() => {
+          historySavedRef.current = true;
+          sileo.success({ title: "Sesión guardada en el historial" });
+        }).catch((error: unknown) => {
+          console.error("No se pudo guardar el historial de la sesión:", error);
+          sileo.warning({ title: "No se pudo guardar la sesión en el historial", description: "Puedes seguir usando la plataforma; los resultados de esta pantalla siguen disponibles." });
+        }).finally(() => {
+          historySaveInProgressRef.current = false;
+        });
+      }
       if (serviceRef.current) {
         serviceRef.current.broadcastEnd({
           players: playersRef.current,

@@ -125,6 +125,23 @@ export interface PlayerScore {
   lastOption?: string;
 }
 
+export interface SessionHistoryResult {
+  name: string;
+  score: number;
+  correctAnswersCount: number;
+}
+
+export interface SessionHistoryEntry {
+  id: string;
+  quizId: string;
+  quizTitle: string;
+  subjectLabel: string;
+  roomCode: string;
+  startedAt: string;
+  finishedAt: string;
+  results: SessionHistoryResult[];
+}
+
 export interface LiveGameState {
   phase: GamePhase;
   questionIndex: number;

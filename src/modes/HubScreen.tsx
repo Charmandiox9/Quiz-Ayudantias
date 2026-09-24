@@ -21,9 +21,11 @@ import Badge from "../components/common/Badge";
 import PrivacyNotice from "../components/common/PrivacyNotice";
 import { sanitizeNickname, sanitizeRoomCode, generateAnonymousAlias } from "../utils/sanitizers";
 import { uploadImageToR2 } from "../utils/questionImages";
+import { deleteSessionHistoryEntry, loadSessionHistory } from "../services/sessionHistoryService";
 import type { CSSProperties, FormEvent, ReactNode } from "react";
-import type { CatalogSubject, EditorQuestion, QuestionType, QuizCatalog, QuizDefinition, QuizForm } from "../types";
+import type { CatalogSubject, EditorQuestion, QuestionType, QuizCatalog, QuizDefinition, QuizForm, SessionHistoryEntry } from "../types";
 import {
+  ArrowLeft,
   ArrowDown,
   ArrowUp,
   BookOpen,
@@ -36,6 +38,8 @@ import {
   Smartphone,
   Upload,
   ImagePlus,
+  History,
+  Trash2,
   Pencil,
   X,
 } from "lucide-react";
@@ -143,11 +147,57 @@ interface HubScreenProps {
   catalog?: QuizCatalog;
   onCatalogChange?: (catalog: QuizCatalog) => Promise<void>;
   teacherEmail?: string;
+  teacherUserId?: string;
   onSignOut?: () => void;
 }
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+function SessionHistoryPanel({ entries, loading, error, onBack, onDelete }: { entries: SessionHistoryEntry[]; loading: boolean; error: string; onBack: () => void; onDelete: (entry: SessionHistoryEntry) => void }) {
+  return (
+    <Card title="Historial de sesiones" subtitle="Quizzes en vivo que ya finalizaron">
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+        <Button variant="secondary" size="sm" icon={ArrowLeft} onClick={onBack}>Volver a asignaturas</Button>
+      </div>
+      {loading && <p role="status" style={{ color: "#64748B" }}>Cargando historial…</p>}
+      {error && <p role="alert" style={{ color: "#B91C1C" }}>{error}</p>}
+      {!loading && !error && entries.length === 0 && (
+        <p style={{ margin: 0, padding: "20px 0", color: "#64748B", textAlign: "center" }}>Todavía no hay sesiones completadas.</p>
+      )}
+      <div style={{ display: "grid", gap: 10 }}>
+        {entries.map((entry) => (
+          <details key={entry.id} style={{ border: "1px solid #E2E8F0", borderRadius: 10, padding: "12px 14px", background: "#FFFFFF" }}>
+            <summary style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, cursor: "pointer" }}>
+              <span>
+                <strong style={{ display: "block", color: "#1E2761" }}>{entry.quizTitle}</strong>
+                <span style={{ display: "block", color: "#64748B", fontSize: 12, marginTop: 4 }}>
+                  {[entry.subjectLabel, new Date(entry.finishedAt).toLocaleString("es-CL"), `Sala ${entry.roomCode}`, `${entry.results.length} participantes`].filter(Boolean).join(" · ")}
+                </span>
+              </span>
+              <span style={{ color: "#1E2761", fontSize: 13, fontWeight: 700 }}>Ver clasificación</span>
+            </summary>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+              <Button variant="danger" size="sm" icon={Trash2} onClick={() => onDelete(entry)}>Eliminar sesión</Button>
+            </div>
+            {entry.results.length ? (
+              <div style={{ overflowX: "auto", marginTop: 12 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
+                  <thead><tr style={{ color: "#64748B" }}><th style={{ padding: 8 }}>#</th><th style={{ padding: 8 }}>Apodo</th><th style={{ padding: 8 }}>Puntaje</th><th style={{ padding: 8 }}>Aciertos</th></tr></thead>
+                  <tbody>{entry.results.map((result, index) => (
+                    <tr key={`${entry.id}-${index}`} style={{ borderTop: "1px solid #E2E8F0" }}>
+                      <td style={{ padding: 8 }}>{index + 1}</td><td style={{ padding: 8, fontWeight: 700 }}>{result.name}</td><td style={{ padding: 8 }}>{result.score}</td><td style={{ padding: 8 }}>{result.correctAnswersCount}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            ) : <p style={{ margin: "12px 0 0", color: "#64748B", fontSize: 13 }}>La sesión terminó sin participantes.</p>}
+          </details>
+        ))}
+      </div>
+    </Card>
+  );
 }
 
 export default function HubScreen({
@@ -158,6 +208,7 @@ export default function HubScreen({
   catalog: remoteCatalog,
   onCatalogChange,
   teacherEmail = "",
+  teacherUserId,
   onSignOut,
 }: HubScreenProps) {
   const [localCatalog, setLocalCatalog] = useState(loadQuizCatalog);
@@ -178,6 +229,10 @@ export default function HubScreen({
   const [uploadingCardImage, setUploadingCardImage] = useState(false);
   const [failedSubjectSealUrl, setFailedSubjectSealUrl] = useState("");
   const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [sessionHistory, setSessionHistory] = useState<SessionHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
 
   const selectedSubject = useMemo(
     () => catalog.subjects.find((subject) => subject.id === selectedSubjectId) || catalog.subjects[0],
@@ -185,6 +240,34 @@ export default function HubScreen({
   );
   const isSubjectSealPreviewFailed = Boolean(subjectForm.sealLogoUrl && failedSubjectSealUrl === subjectForm.sealLogoUrl);
   const subjectSealPreviewSrc = isSubjectSealPreviewFailed ? "/assets/seal_logo.jpg" : subjectForm.sealLogoUrl;
+
+  const handleOpenHistory = async () => {
+    if (!teacherUserId) return;
+    setShowHistory(true);
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      setSessionHistory(await loadSessionHistory(teacherUserId));
+    } catch (error) {
+      const message = errorMessage(error, "No se pudo cargar el historial.");
+      setHistoryError(message);
+      sileo.error({ title: "No se pudo cargar el historial", description: message });
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleDeleteHistoryEntry = async (entry: SessionHistoryEntry) => {
+    if (!teacherUserId || !window.confirm(`¿Eliminar del historial la sesión “${entry.quizTitle}” del ${new Date(entry.finishedAt).toLocaleString("es-CL")}?`)) return;
+    try {
+      await deleteSessionHistoryEntry(teacherUserId, entry.id);
+      setSessionHistory((current) => current.filter((session) => session.id !== entry.id));
+      sileo.success({ title: "Sesión eliminada del historial" });
+    } catch (error) {
+      const message = errorMessage(error, "No se pudo eliminar la sesión.");
+      sileo.error({ title: "No se pudo eliminar la sesión", description: message });
+    }
+  };
 
   const commitCatalog = async (nextCatalog: QuizCatalog): Promise<void> => {
     setPageError("");
@@ -498,6 +581,7 @@ export default function HubScreen({
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             {teacherEmail && <span style={{ color: "#64748B", fontSize: 12 }}>{teacherEmail}</span>}
+            {teacherUserId && <Button variant="outline" size="sm" icon={History} onClick={handleOpenHistory}>Historial</Button>}
             {onSignOut && <Button variant="secondary" size="sm" onClick={onSignOut}>Cerrar sesión</Button>}
             <Button variant="primary" icon={CirclePlus} disabled={saving} onClick={() => openSubjectEditor()}>
               Nueva asignatura
@@ -508,6 +592,10 @@ export default function HubScreen({
         {pageError && <p role="alert" style={{ padding: 12, background: "#FEF2F2", color: "#B91C1C", borderRadius: 8 }}>{pageError}</p>}
         {saving && <p role="status" style={{ color: "#64748B", fontSize: 13 }}>Guardando cambios en la nube…</p>}
 
+        {showHistory ? (
+          <SessionHistoryPanel entries={sessionHistory} loading={historyLoading} error={historyError} onBack={() => setShowHistory(false)} onDelete={handleDeleteHistoryEntry} />
+        ) : (
+          <>
         <div className="teacher-library-layout">
           <Card title="Mis asignaturas" subtitle={`${catalog.subjects.length} asignatura${catalog.subjects.length === 1 ? "" : "s"}`}>
             <div style={{ display: "grid", gap: 8 }}>
@@ -623,6 +711,8 @@ export default function HubScreen({
           </form>
         </Card>
         <div style={{ marginTop: 18 }}><PrivacyNotice /></div>
+          </>
+        )}
       </div>
 
       {modal === "subject" && (

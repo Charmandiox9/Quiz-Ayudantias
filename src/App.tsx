@@ -265,6 +265,7 @@ export default function App() {
           catalog={isSupabaseConfigured ? catalog || undefined : undefined}
           onCatalogChange={isSupabaseConfigured ? handleSaveCatalog : undefined}
           teacherEmail={teacherUser?.email || ""}
+          teacherUserId={isSupabaseConfigured && teacherAllowed ? teacherUser?.id : undefined}
           onSignOut={isSupabaseConfigured ? () => supabase?.auth.signOut() : undefined}
         />
         )
@@ -274,6 +275,7 @@ export default function App() {
         <HostScreen
           ayudantia={sessionData.ayudantia}
           roomCode={sessionData.roomCode}
+          ownerId={isSupabaseConfigured && teacherAllowed ? teacherUser?.id : undefined}
           onExit={handleExitToHub}
         />
       )}
