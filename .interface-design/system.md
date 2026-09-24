@@ -13,7 +13,7 @@ Academic teaching workbench: calm, direct and readable from a classroom computer
 - Individual practice and review
 
 ## Signature
-The professor's content is organized as an explicit path: subject list → quiz library → publish or launch actions. A live quiz receives a fresh room code for each run, so the reusable content stays separate from the classroom session.
+The professor's content is organized as an explicit path: overview counts → subject navigation → searchable, filterable quiz library → publish or launch actions. A live quiz receives a fresh room code for each run, so the reusable content stays separate from the classroom session. Manual room entry stays available in a compact disclosure below the library.
 
 ## Palette
 Use the existing institutional palette in `src/index.css`:
@@ -32,7 +32,8 @@ Avoid introducing extra accent hues for decoration. Quiz option colors remain th
 
 ## Layout and spacing
 - Use an 8px spacing rhythm, with 4px for small icon/label gaps.
-- Desktop library: narrow subject navigation beside the wider quiz list; collapse to one column below 760px.
+- Desktop library: narrow subject navigation beside the wider quiz list; collapse to one column below 760px. The subject list may stay in view while browsing a long library.
+- Show a compact count strip above the library and keep search, status filters and result count together.
 - Group form fields by question; put answer-key controls directly beside each alternative.
 - Keep the launch actions adjacent to the quiz they run.
 
@@ -49,5 +50,5 @@ Avoid introducing extra accent hues for decoration. Quiz option colors remain th
 - Respect keyboard focus visibility and provide hit areas appropriate for touch use.
 
 ## Current limitations
-- This system documents the first library screen. Shared teacher accounts, cross-device persistence and further question types are not yet implemented.
-- A visual browser pass remains pending because project dependencies are not installed in the current checkout.
+- This system documents the teacher library. Shared teacher accounts, cross-device persistence and further question types are not yet implemented.
+- The authenticated teacher view requires an enabled account, so visual verification of that screen depends on access to one.

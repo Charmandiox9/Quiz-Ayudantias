@@ -177,6 +177,97 @@ input, button, select, textarea {
   gap: 12px;
 }
 
+/* Teacher dashboard library */
+.teacher-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 20px;
+}
+
+.teacher-overview > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 62px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.teacher-overview span { color: var(--color-text-secondary); font-size: 13px; }
+.teacher-overview strong { color: var(--color-primary); font-size: 21px; }
+
+.teacher-library-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
+  align-items: start;
+  gap: 22px;
+}
+
+.teacher-subjects-panel { position: sticky; top: 16px; }
+.teacher-subject-list { display: grid; gap: 8px; }
+
+.teacher-subject-item {
+  width: 100%;
+  padding: 13px 14px;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.teacher-subject-item:hover { border-color: var(--color-border-hover); background: var(--color-surface-muted); }
+.teacher-subject-item:focus-visible, .teacher-join-details summary:focus-visible { outline: 3px solid #93C5FD; outline-offset: 2px; }
+.teacher-subject-item.is-selected { border-color: var(--color-primary); background: #EEF2FF; box-shadow: inset 3px 0 var(--color-primary); }
+.teacher-subject-item > span:first-child { display: block; color: var(--color-primary); font-weight: 750; }
+.teacher-subject-item > span:last-child { display: block; margin-top: 4px; color: var(--color-text-secondary); font-size: 12px; }
+.teacher-quiz-library { min-width: 0; }
+
+.teacher-quiz-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(150px, 210px) auto;
+  align-items: end;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.teacher-search-field, .teacher-filter-field { display: grid; gap: 5px; color: var(--color-text-secondary); font-size: 12px; font-weight: 700; }
+.teacher-search-field input, .teacher-filter-field select { width: 100%; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid var(--color-border-hover); border-radius: 8px; background: white; color: var(--color-text-main); font: inherit; font-weight: 400; }
+.teacher-search-field input:focus, .teacher-filter-field select:focus { outline: 3px solid #BFDBFE; border-color: var(--color-primary); }
+.teacher-result-count { padding: 0 2px 9px; color: var(--color-text-secondary); font-size: 12px; white-space: nowrap; }
+.teacher-quiz-list { display: grid; gap: 12px; }
+.teacher-filter-empty { padding: 26px 18px; border: 1px dashed var(--color-border-hover); border-radius: var(--radius-md); color: var(--color-text-secondary); text-align: center; }
+.teacher-filter-empty button { margin-top: 8px; border: 0; background: none; color: var(--color-primary); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+
+.teacher-join-details { margin-top: 22px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.teacher-join-details summary { padding: 14px 16px; color: var(--color-primary); font-size: 14px; font-weight: 700; cursor: pointer; }
+.teacher-join-content { padding: 0 16px 16px; }
+.teacher-join-content > p { margin: 0 0 12px; color: var(--color-text-secondary); font-size: 13px; }
+
+@media (max-width: 760px) {
+  .teacher-library-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .teacher-subjects-panel { position: static; }
+  .teacher-subject-list { grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .teacher-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .teacher-overview > div { min-height: 62px; padding: 10px; }
+  .teacher-overview span { font-size: 11px; }
+  .teacher-quiz-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .teacher-result-count { padding: 0; }
+}
+
 /* Breakpoint para pantallas pequeñas (móviles < 640px) */
 @media (max-width: 640px) {
   :root {

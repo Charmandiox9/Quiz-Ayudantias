@@ -254,6 +254,8 @@ export default function HubScreen({
   const [failedSubjectSealUrl, setFailedSubjectSealUrl] = useState("");
   const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [quizSearch, setQuizSearch] = useState("");
+  const [quizStatusFilter, setQuizStatusFilter] = useState("all");
   const [sessionHistory, setSessionHistory] = useState<SessionHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
@@ -262,6 +264,22 @@ export default function HubScreen({
     () => catalog.subjects.find((subject) => subject.id === selectedSubjectId) || catalog.subjects[0],
     [catalog.subjects, selectedSubjectId]
   );
+  const visibleQuizzes = useMemo(() => {
+    const query = quizSearch.trim().toLocaleLowerCase("es");
+    return (selectedSubject?.quizzes || []).filter((quiz) => {
+      const matchesSearch = !query || `${quiz.title} ${quiz.description || quiz.subtitle || ""}`.toLocaleLowerCase("es").includes(query);
+      const matchesStatus = quizStatusFilter === "all" || (quiz.status || "published") === quizStatusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [selectedSubject, quizSearch, quizStatusFilter]);
+  const quizCounts = useMemo(() => {
+    const quizzes = catalog.subjects.flatMap((subject) => subject.quizzes);
+    return {
+      total: quizzes.length,
+      published: quizzes.filter((quiz) => !quiz.status || quiz.status === "published").length,
+      drafts: quizzes.filter((quiz) => quiz.status === "draft").length,
+    };
+  }, [catalog.subjects]);
   const isSubjectSealPreviewFailed = Boolean(subjectForm.sealLogoUrl && failedSubjectSealUrl === subjectForm.sealLogoUrl);
   const subjectSealPreviewSrc = isSubjectSealPreviewFailed ? "/assets/seal_logo.jpg" : subjectForm.sealLogoUrl;
 
@@ -620,9 +638,17 @@ export default function HubScreen({
           <SessionHistoryPanel entries={sessionHistory} loading={historyLoading} error={historyError} onBack={() => setShowHistory(false)} onDelete={handleDeleteHistoryEntry} />
         ) : (
           <>
+        <div className="teacher-overview" aria-label="Resumen de tu biblioteca">
+          <div><span>Asignaturas</span><strong>{catalog.subjects.length}</strong></div>
+          <div><span>Quizzes en total</span><strong>{quizCounts.total}</strong></div>
+          <div><span>Quizzes publicados</span><strong>{quizCounts.published}</strong></div>
+          <div><span>Borradores</span><strong>{quizCounts.drafts}</strong></div>
+        </div>
+
         <div className="teacher-library-layout">
+          <aside className="teacher-subjects-panel">
           <Card title="Mis asignaturas" subtitle={`${catalog.subjects.length} asignatura${catalog.subjects.length === 1 ? "" : "s"}`}>
-            <div style={{ display: "grid", gap: 8 }}>
+            <nav className="teacher-subject-list" aria-label="Asignaturas">
               {catalog.subjects.map((subject) => {
                 const selected = subject.id === selectedSubject?.id;
                 return (
@@ -631,14 +657,7 @@ export default function HubScreen({
                     type="button"
                     onClick={() => setSelectedSubjectId(subject.id)}
                     aria-pressed={selected}
-                    style={{
-                      padding: "13px 14px",
-                      textAlign: "left",
-                      borderRadius: 10,
-                      border: selected ? "1.5px solid #1E2761" : "1px solid #E2E8F0",
-                      background: selected ? "#EEF2FF" : "#FFFFFF",
-                      cursor: "pointer",
-                    }}
+                    className={`teacher-subject-item${selected ? " is-selected" : ""}`}
                   >
                     <span style={{ display: "block", color: "#1E2761", fontWeight: 750 }}>{subject.name}</span>
                     <span style={{ display: "block", color: "#64748B", fontSize: 12, marginTop: 4 }}>
@@ -648,10 +667,11 @@ export default function HubScreen({
                 );
               })}
               {catalog.subjects.length === 0 && <p style={{ color: "#64748B", fontSize: 14 }}>Aún no hay asignaturas.</p>}
-            </div>
+            </nav>
           </Card>
+          </aside>
 
-          <section>
+          <section className="teacher-quiz-library" aria-label="Biblioteca de quizzes">
             {selectedSubject ? (
               <>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap", margin: "4px 0 16px" }}>
@@ -666,8 +686,23 @@ export default function HubScreen({
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gap: 12 }}>
-                  {selectedSubject.quizzes.map((quiz) => (
+                <div className="teacher-quiz-toolbar">
+                  <label className="teacher-search-field">Buscar quiz
+                    <input type="search" value={quizSearch} onChange={(event) => setQuizSearch(event.target.value)} placeholder="Título o descripción" />
+                  </label>
+                  <label className="teacher-filter-field">Estado
+                    <select value={quizStatusFilter} onChange={(event) => setQuizStatusFilter(event.target.value)}>
+                      <option value="all">Todos ({selectedSubject.quizzes.length})</option>
+                      <option value="published">Publicados</option>
+                      <option value="draft">Borradores</option>
+                      <option value="archived">Archivados</option>
+                    </select>
+                  </label>
+                  <span className="teacher-result-count">{visibleQuizzes.length} de {selectedSubject.quizzes.length} quizzes</span>
+                </div>
+
+                <div className="teacher-quiz-list">
+                  {visibleQuizzes.map((quiz) => (
                     <Card key={quiz.id} style={{ overflow: "visible" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 18, flexWrap: "wrap" }}>
                         <div style={{ minWidth: 220, flex: "1 1 300px" }}>
@@ -708,6 +743,12 @@ export default function HubScreen({
                       <Button variant="accent" icon={Plus} onClick={openQuizCreator}>Crear quiz</Button>
                     </Card>
                   )}
+                  {selectedSubject.quizzes.length > 0 && visibleQuizzes.length === 0 && (
+                    <div className="teacher-filter-empty">
+                      <p>No encontramos quizzes con esos filtros.</p>
+                      <button type="button" onClick={() => { setQuizSearch(""); setQuizStatusFilter("all"); }}>Limpiar filtros</button>
+                    </div>
+                  )}
                 </div>
               </>
             ) : (
@@ -720,7 +761,9 @@ export default function HubScreen({
           </section>
         </div>
 
-        <Card title="Unirse a una sala" subtitle="Para estudiantes que ingresan manualmente con un código" style={{ marginTop: 22 }}>
+        <details className="teacher-join-details">
+          <summary>¿Necesitas entrar a una sala manualmente?</summary>
+          <div className="teacher-join-content"><p>Ingresa tu apodo y el código de la sala para unirte como participante.</p>
           <form onSubmit={handleJoin} style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "end" }}>
             <label style={{ flex: "1 1 190px", color: "#475569", fontSize: 12, fontWeight: 700 }}>
               Apodo
@@ -733,7 +776,8 @@ export default function HubScreen({
             <Button type="submit" variant="accent" icon={Smartphone}>Entrar</Button>
             {joinError && <span role="alert" style={{ flexBasis: "100%", color: "#B91C1C", fontSize: 13 }}>{joinError}</span>}
           </form>
-        </Card>
+          </div>
+        </details>
         <div style={{ marginTop: 18 }}><PrivacyNotice /></div>
           </>
         )}
