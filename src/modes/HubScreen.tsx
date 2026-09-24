@@ -22,6 +22,7 @@ import PrivacyNotice from "../components/common/PrivacyNotice";
 import { sanitizeNickname, sanitizeRoomCode, generateAnonymousAlias } from "../utils/sanitizers";
 import { uploadImageToR2 } from "../utils/questionImages";
 import { deleteSessionHistoryEntry, loadSessionHistory } from "../services/sessionHistoryService";
+import { exportSessionQuestionStatsCsv, exportSessionResultsCsv } from "../utils/sessionHistoryCsv";
 import type { CSSProperties, FormEvent, ReactNode } from "react";
 import type { CatalogSubject, EditorQuestion, QuestionType, QuizCatalog, QuizDefinition, QuizForm, SessionHistoryEntry } from "../types";
 import {
@@ -39,6 +40,7 @@ import {
   Upload,
   ImagePlus,
   History,
+  Download,
   Trash2,
   Pencil,
   X,
@@ -158,7 +160,11 @@ function errorMessage(error: unknown, fallback: string): string {
 function SessionHistoryPanel({ entries, loading, error, onBack, onDelete }: { entries: SessionHistoryEntry[]; loading: boolean; error: string; onBack: () => void; onDelete: (entry: SessionHistoryEntry) => void }) {
   return (
     <Card title="Historial de sesiones" subtitle="Quizzes en vivo que ya finalizaron">
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <Button variant="outline" size="sm" icon={Download} disabled={loading || entries.length === 0} onClick={() => exportSessionResultsCsv(entries)}>Exportar resultados CSV</Button>
+          <Button variant="outline" size="sm" icon={Download} disabled={loading || entries.length === 0} onClick={() => exportSessionQuestionStatsCsv(entries)}>Exportar estadísticas CSV</Button>
+        </div>
         <Button variant="secondary" size="sm" icon={ArrowLeft} onClick={onBack}>Volver a asignaturas</Button>
       </div>
       {loading && <p role="status" style={{ color: "#64748B" }}>Cargando historial…</p>}
@@ -193,6 +199,24 @@ function SessionHistoryPanel({ entries, loading, error, onBack, onDelete }: { en
                 </table>
               </div>
             ) : <p style={{ margin: "12px 0 0", color: "#64748B", fontSize: 13 }}>La sesión terminó sin participantes.</p>}
+            <section style={{ marginTop: 16 }}>
+              <h4 style={{ margin: "0 0 8px", color: "#1E2761" }}>Estadísticas por pregunta</h4>
+              {entry.questionStats.length ? (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
+                    <thead><tr style={{ color: "#64748B" }}><th style={{ padding: 8 }}>Pregunta</th><th style={{ padding: 8 }}>Respuestas</th><th style={{ padding: 8 }}>Correctas</th><th style={{ padding: 8 }}>% acierto</th></tr></thead>
+                    <tbody>{entry.questionStats.map((stat) => (
+                      <tr key={`${entry.id}-question-${stat.questionNumber}`} style={{ borderTop: "1px solid #E2E8F0" }}>
+                        <td style={{ padding: 8, minWidth: 220 }}>{stat.questionNumber}. {stat.question}</td>
+                        <td style={{ padding: 8 }}>{stat.responseCount}</td>
+                        <td style={{ padding: 8 }}>{stat.correctCount}</td>
+                        <td style={{ padding: 8 }}>{stat.responseCount ? `${Math.round((stat.correctCount / stat.responseCount) * 100)}%` : "—"}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              ) : <p style={{ margin: 0, color: "#64748B", fontSize: 13 }}>Esta sesión no tiene estadísticas por pregunta guardadas.</p>}
+            </section>
           </details>
         ))}
       </div>

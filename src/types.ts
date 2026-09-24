@@ -131,6 +131,13 @@ export interface SessionHistoryResult {
   correctAnswersCount: number;
 }
 
+export interface SessionQuestionStat {
+  questionNumber: number;
+  question: string;
+  responseCount: number;
+  correctCount: number;
+}
+
 export interface SessionHistoryEntry {
   id: string;
   quizId: string;
@@ -140,6 +147,7 @@ export interface SessionHistoryEntry {
   startedAt: string;
   finishedAt: string;
   results: SessionHistoryResult[];
+  questionStats: SessionQuestionStat[];
 }
 
 export interface LiveGameState {

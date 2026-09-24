@@ -12,7 +12,7 @@ export const PRIVACY_POLICY = {
     },
     {
       title: "Limitacion del Plazo de Conservacion",
-      description: "El docente puede eliminar sesiones desde el historial. La clasificación final se conserva en Supabase hasta que el docente la elimine; no se guardan las respuestas individuales ni el identificador del dispositivo.",
+      description: "El docente puede eliminar sesiones desde el historial. La clasificación final y los conteos agregados de respuestas por pregunta se conservan en Supabase hasta que el docente elimine la sesión; no se guardan las respuestas individuales ni el identificador del dispositivo.",
     },
     {
       title: "Sin Rastreo Comercial",

@@ -114,3 +114,23 @@
 - Documenté la nueva migración en README y actualicé el aviso de privacidad sobre los datos retenidos y la eliminación manual.
 - `npm run typecheck`, `npm run lint`, `npm run build` y `git diff --check` pasan. Vite mantiene su advertencia existente por bundles mayores a 500 kB.
 - **Pendiente de entorno:** ejecutar `supabase/migrations/20260924000100_quiz_session_history.sql` en el SQL Editor de producción; no se ejecutó una migración remota desde este workspace.
+
+## Session: 2026-09-24 — Estadísticas y exportación
+
+### Phase 1: Diseño y datos
+- **Status:** complete
+- Definí métricas agregadas por pregunta: respuestas recibidas y correctas. No se guardan respuestas individuales.
+- Añadí migración incremental `20260924000200_session_question_stats.sql`; sesiones previas reciben un array vacío.
+
+### Phase 2: Integración
+- **Status:** complete
+- `HostScreen` acumula métricas al recibir el primer voto válido de cada jugador y las incluye al finalizar.
+- El Hub presenta conteos y porcentaje de acierto por pregunta dentro de cada sesión.
+- Añadí CSV UTF-8 con BOM para resultados de participantes y estadísticas por pregunta/sesión.
+- README y aviso de privacidad describen los datos nuevos.
+
+### Phase 3: Verificación
+- **Status:** complete
+- `npm run typecheck`, `npm run lint`, `npm run build` y `git diff --check` pasan.
+- Vite conserva la advertencia de tamaño de bundle mayor a 500 kB.
+- **Pendiente de entorno:** ejecutar `supabase/migrations/20260924000200_session_question_stats.sql` después de la migración de historial en Supabase.

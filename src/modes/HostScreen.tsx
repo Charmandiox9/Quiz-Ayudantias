@@ -14,7 +14,7 @@ import { answerLabels, formatAnswerText, isAnswerCorrect, isOrdering, isShortAns
 import { getAppUrl } from "../utils/appUrl";
 import { getQuestionTimeLimitSeconds } from "../utils/quizTime";
 import { saveCompletedSession } from "../services/sessionHistoryService";
-import type { GamePhase, LiveQuestionPayload, PlayerScore, QuizDefinition, QuizQuestion } from "../types";
+import type { GamePhase, LiveQuestionPayload, PlayerScore, QuizDefinition, QuizQuestion, SessionQuestionStat } from "../types";
 import { sileo } from "sileo";
 import {
   ArrowLeft,
@@ -74,6 +74,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
   const sessionStartedAtRef = useRef<string | null>(null);
   const historySavedRef = useRef(false);
   const historySaveInProgressRef = useRef(false);
+  const questionStatsRef = useRef<SessionQuestionStat[]>([]);
 
   const currentQuestion = ayudantia.questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === ayudantia.questions.length - 1;
@@ -239,6 +240,11 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
         }
 
         const isCorrect = isAnswerCorrect(currentQ, response);
+        const questionStat = questionStatsRef.current[gameStateRef.current.index];
+        if (questionStat) {
+          questionStat.responseCount += 1;
+          if (isCorrect) questionStat.correctCount += 1;
+        }
 
         let pointsEarned = 0;
         if (isCorrect) {
@@ -287,6 +293,12 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
   const handleStartGame = () => {
     sessionStartedAtRef.current = new Date().toISOString();
     historySavedRef.current = false;
+    questionStatsRef.current = ayudantia.questions.map((question, index) => ({
+      questionNumber: index + 1,
+      question: question.q,
+      responseCount: 0,
+      correctCount: 0,
+    }));
     answeredPlayersRef.current.clear();
     questionEndedRef.current = false;
     setPlayers((previous) => {
@@ -350,6 +362,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
           roomCode,
           startedAt: sessionStartedAtRef.current,
           players: playersRef.current,
+          questionStats: questionStatsRef.current,
         }).then(() => {
           historySavedRef.current = true;
           sileo.success({ title: "Sesión guardada en el historial" });

@@ -77,3 +77,15 @@ Complete — listo para configurar Supabase
 - Guardar la clasificación final con apodos, puntaje y respuestas correctas; no guardar identificadores de dispositivo ni respuestas individuales.
 - El historial requiere Supabase y cuenta docente autorizada; el modo local sigue siendo efímero.
 - El docente puede eliminar sesiones individuales; el historial se conserva hasta que lo elimine.
+
+## Phase 7: Estadísticas por pregunta y exportación — complete
+- [x] Acumular por pregunta cantidad de respuestas y aciertos durante la sesión.
+- [x] Guardar y mostrar esos agregados en el historial.
+- [x] Añadir exportación CSV de clasificaciones y estadísticas por pregunta.
+- [x] Añadir migración incremental, documentar e inspeccionar privacidad.
+- [x] Verificar tipos, lint, build y whitespace.
+- **Status:** complete — ejecutar `20260924000200_session_question_stats.sql` en Supabase para activar las estadísticas.
+
+### Decisions for Phase 7
+- Guardar en cada pregunta solo su texto y los conteos de respuestas y aciertos; no exportar respuestas individuales.
+- Ofrecer dos CSV planos, uno para clasificación por participante y otro para métricas por pregunta, compatibles con Excel/Sheets.

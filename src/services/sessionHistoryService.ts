@@ -1,5 +1,5 @@
 import { supabase } from "./supabaseClient";
-import type { PlayerScore, QuizDefinition, SessionHistoryEntry, SessionHistoryResult } from "../types";
+import type { PlayerScore, QuizDefinition, SessionHistoryEntry, SessionHistoryResult, SessionQuestionStat } from "../types";
 
 interface SessionHistoryRow {
   id: string;
@@ -10,6 +10,7 @@ interface SessionHistoryRow {
   started_at: string;
   finished_at: string;
   results: SessionHistoryResult[];
+  question_stats: SessionQuestionStat[] | null;
 }
 
 function requireSupabase(): NonNullable<typeof supabase> {
@@ -23,12 +24,14 @@ export async function saveCompletedSession({
   roomCode,
   startedAt,
   players,
+  questionStats,
 }: {
   ownerId: string;
   quiz: QuizDefinition;
   roomCode: string;
   startedAt: string;
   players: PlayerScore[];
+  questionStats: SessionQuestionStat[];
 }): Promise<void> {
   const results = [...players]
     .sort((left, right) => right.score - left.score || right.correctAnswersCount - left.correctAnswersCount)
@@ -41,6 +44,7 @@ export async function saveCompletedSession({
     room_code: roomCode,
     started_at: startedAt,
     results,
+    question_stats: questionStats,
   });
   if (error) throw error;
 }
@@ -48,7 +52,7 @@ export async function saveCompletedSession({
 export async function loadSessionHistory(ownerId: string): Promise<SessionHistoryEntry[]> {
   const { data, error } = await requireSupabase()
     .from("quiz_sessions")
-    .select("id,quiz_id,quiz_title,subject_label,room_code,started_at,finished_at,results")
+    .select("id,quiz_id,quiz_title,subject_label,room_code,started_at,finished_at,results,question_stats")
     .eq("owner_id", ownerId)
     .order("finished_at", { ascending: false });
   if (error) throw error;
@@ -62,6 +66,7 @@ export async function loadSessionHistory(ownerId: string): Promise<SessionHistor
     startedAt: row.started_at,
     finishedAt: row.finished_at,
     results: Array.isArray(row.results) ? row.results : [],
+    questionStats: Array.isArray(row.question_stats) ? row.question_stats : [],
   }));
 }
 

@@ -67,3 +67,11 @@
 - La tabla tendrá snapshot de título/asignatura y no dependerá de una FK al quiz: así el historial sobrevive si el quiz se archiva o elimina.
 - El historial será privado con RLS por `owner_id`; el modo local sin Supabase no tendrá persistencia compartida.
 - El historial puede ser eliminado por el docente sesión por sesión; el aviso de privacidad informa que apodos, puntajes y aciertos se mantienen hasta su eliminación.
+
+## Phase 7 Findings: Estadísticas y exportación
+- `HostScreen` recibe un único voto válido por persona y pregunta en `onPlayerVote`, donde ya calcula si la respuesta es correcta.
+- La sesión guarda actualmente solo `results` (clasificación). Añadir un array de `question_stats` permite ampliar cada registro de forma compatible con los existentes.
+- El historial puede exportarse a CSV plano con una fila por participante; las métricas por pregunta pueden exportarse en otro CSV con una fila por pregunta y sesión.
+- Las respuestas abiertas/individuales no se exportan; los conteos de aciertos y respuestas bastan para el porcentaje de dificultad.
+- La migración incremental añade `question_stats` con `[]` como valor predeterminado, así los registros guardados antes no se alteran y aparecen sin métricas nuevas.
+- Se ofrecen dos CSV UTF-8 con BOM para Excel/Sheets: filas por participante y filas por pregunta/sesión. Los campos que podrían interpretarse como fórmulas se neutralizan.
