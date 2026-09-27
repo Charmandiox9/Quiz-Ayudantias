@@ -506,7 +506,16 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
               </button>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "center", margin: "16px 0" }}>
+            <div style={{ margin: "12px 0 4px", textAlign: "center" }}>
+              <span style={{ display: "block", color: "var(--color-text-secondary)", fontSize: "13px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase" }}>
+                Código de sesión
+              </span>
+              <span style={{ display: "block", color: "var(--color-primary)", fontFamily: "Consolas, monospace", fontSize: "34px", fontWeight: 900, letterSpacing: "3px", lineHeight: 1.2 }}>
+                {roomCode}
+              </span>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "center", margin: "12px 0 16px" }}>
               <QRCodeDisplay value={joinUrl} size={240} />
             </div>
 
@@ -552,6 +561,12 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
               }}
             >
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "20px", backgroundColor: "var(--color-bg)", borderRadius: "16px", border: "1px solid var(--color-border)" }}>
+                <span style={{ color: "var(--color-text-secondary)", fontSize: "14px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", marginBottom: "4px" }}>
+                  Código de sesión
+                </span>
+                <span style={{ color: "var(--color-primary)", fontFamily: "Consolas, monospace", fontSize: "34px", fontWeight: 900, letterSpacing: "3px", lineHeight: 1.2, marginBottom: "12px" }}>
+                  {roomCode}
+                </span>
                 <QRCodeDisplay value={joinUrl} size={250} />
                 <div style={{ marginTop: "16px", textAlign: "center" }}>
                   <span style={{ fontSize: "14px", color: "var(--color-text-muted)", fontWeight: 600 }}>O ingresa directamente en:</span>
