@@ -120,7 +120,7 @@ export async function loadPublicPracticeCatalog(): Promise<QuizCatalog> {
   const [{ data: subjects, error: subjectsError }, { data: quizzes, error: quizzesError }, { data: settings, error: settingsError }] =
     await Promise.all([
       client.from("subjects").select("id,owner_id,name,code,description,seal_logo_url,mascot_enabled").order("created_at"),
-      client.from("quizzes").select("id,subject_id,title,description,questions,metadata,version").order("created_at"),
+      client.from("quizzes").select("id,subject_id,title,description,questions,metadata,version,practice_enabled").eq("status", "published").eq("practice_enabled", true).order("created_at"),
       client.from("teacher_settings").select("owner_id,quiz_mascot_enabled"),
     ]);
   if (subjectsError) throw subjectsError;
@@ -140,7 +140,7 @@ export async function loadPublicPracticeCatalog(): Promise<QuizCatalog> {
       sealLogoUrl: subject.seal_logo_url || "",
       mascotEnabled: subject.mascot_enabled ?? mascotSettings.get(subject.owner_id || "") ?? true,
       quizzes: quizRows
-        .filter((quiz) => quiz.subject_id === subject.id)
+        .filter((quiz) => quiz.subject_id === subject.id && quiz.practice_enabled === true)
         .map((quiz) => ({
           ...quiz.metadata,
           id: quiz.id,
@@ -150,7 +150,7 @@ export async function loadPublicPracticeCatalog(): Promise<QuizCatalog> {
           subtitle: quiz.description || "",
           description: quiz.description || "",
           status: "published" as const,
-          practiceEnabled: true,
+          practiceEnabled: Boolean(quiz.practice_enabled),
           mascotEnabled: subject.mascot_enabled ?? mascotSettings.get(subject.owner_id || "") ?? true,
           version: quiz.version || (typeof quiz.metadata?.version === "number" ? quiz.metadata.version : 1),
           questions: quiz.questions || [],
