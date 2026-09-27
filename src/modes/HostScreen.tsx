@@ -14,7 +14,7 @@ import { answerLabels, formatAnswerText, isAnswerCorrect, isOrdering, isShortAns
 import { getAppUrl } from "../utils/appUrl";
 import { getQuestionTimeLimitSeconds } from "../utils/quizTime";
 import { saveCompletedSession } from "../services/sessionHistoryService";
-import type { GamePhase, LiveQuestionPayload, PlayerScore, QuizDefinition, QuizQuestion, SessionQuestionStat } from "../types";
+import type { GamePhase, LiveQuestionPayload, PlayerScore, QuizDefinition, QuizQuestion, SessionQuestionStat, TeamScore } from "../types";
 import { sileo } from "sileo";
 import {
   ArrowLeft,
@@ -63,9 +63,14 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
   const [showQrModal, setShowQrModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [gameMode, setGameMode] = useState<"individual" | "teams">("individual");
+  const [teamScores, setTeamScores] = useState<TeamScore[]>([]);
 
   const serviceRef = useRef<RealtimeQuizService | null>(null);
   const playersRef = useRef<PlayerScore[]>([]);
+  const teamScoresRef = useRef<TeamScore[]>([]);
+  const gameModeRef = useRef<"individual" | "teams">("individual");
+  const activeResponderIdsRef = useRef<string[]>([]);
   const currentQuestionRef = useRef<QuizQuestion>(ayudantia.questions[0]);
   const optionOrderRef = useRef<number[]>([]);
   const gameStateRef = useRef<{ phase: GamePhase; index: number }>({ phase: GAME_PHASES.LOBBY, index: 0 });
@@ -91,6 +96,33 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
   const origin = getAppUrl();
   const joinUrl = `${origin}/?join=${roomCode}`;
 
+  const getActiveResponders = (participants: PlayerScore[], questionIndex: number) => {
+    if (gameModeRef.current !== "teams") return [];
+    const teams = new Map<string, PlayerScore[]>();
+    participants.forEach((player) => {
+      if (!player.teamId) return;
+      const members = teams.get(player.teamId) || [];
+      members.push(player);
+      teams.set(player.teamId, members);
+    });
+    return Array.from(teams.values()).map((members) => members[questionIndex % members.length].id);
+  };
+
+  const broadcastLobbyState = (participants = playersRef.current) => {
+    serviceRef.current?.broadcastState({ phase: GAME_PHASES.LOBBY, gameMode: gameModeRef.current, players: participants, teamScores: teamScoresRef.current });
+  };
+
+  const setSessionMode = (nextMode: "individual" | "teams") => {
+    gameModeRef.current = nextMode;
+    setGameMode(nextMode);
+    if (nextMode === "individual") {
+      const reset = playersRef.current.map(({ teamId: _teamId, teamName: _teamName, ...player }) => player);
+      playersRef.current = reset;
+      setPlayers(reset);
+    }
+    broadcastLobbyState();
+  };
+
   const handleToggleAudio = () => {
     const muted = audioService.toggleMute();
     setIsAudioMuted(muted);
@@ -115,6 +147,8 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
       serviceRef.current.broadcastState({
         phase: GAME_PHASES.VOTES,
         players: playersRef.current,
+        gameMode: gameModeRef.current,
+        teamScores: teamScoresRef.current,
       });
     }
   };
@@ -146,6 +180,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
     service.subscribe({
       onConnected: () => {
         service.trackPresence({ role: "host", name: "Docente-Host" });
+        broadcastLobbyState();
       },
       onPresenceSync: (activePresences) => {
         setPlayers((prev) => {
@@ -168,56 +203,58 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
 
           const synchronizedPlayers = Array.from(activePlayers.values());
           playersRef.current = synchronizedPlayers;
+          if (
+            gameModeRef.current === "teams" && gameStateRef.current.phase === GAME_PHASES.QUESTION &&
+            activeResponderIdsRef.current.some((id) => !synchronizedPlayers.some((player) => player.id === id))
+          ) {
+            activeResponderIdsRef.current = getActiveResponders(synchronizedPlayers, gameStateRef.current.index);
+            serviceRef.current?.broadcastState({
+              phase: GAME_PHASES.QUESTION,
+              players: synchronizedPlayers,
+              gameMode: gameModeRef.current,
+              activeResponderIds: activeResponderIdsRef.current,
+            });
+          }
           return synchronizedPlayers;
         });
       },
       onPlayerJoin: (player) => {
-        setPlayers((prev) => {
-          const lower = player.name.toLowerCase();
-          const existingIdx = prev.findIndex(
-            (p) => p.name.toLowerCase() === lower || (player.id && p.id === player.id)
-          );
+        const lower = player.name.toLowerCase();
+        const existingIdx = playersRef.current.findIndex(
+          (item) => item.name.toLowerCase() === lower || (player.id && item.id === player.id)
+        );
+        const updated = [...playersRef.current];
+        if (existingIdx >= 0) {
+          updated[existingIdx] = { ...updated[existingIdx], id: player.id || updated[existingIdx].id, name: player.name };
+        } else {
+          updated.push({ id: player.id, name: player.name, score: 0, lastEarnedPoints: 0, correctAnswersCount: 0 });
+        }
+        playersRef.current = updated;
+        setPlayers(updated);
 
-          if (serviceRef.current) {
-            const currentQ = currentQuestionRef.current;
-            serviceRef.current.broadcastState({
-              ...createLiveQuestionPayload(
-                currentQ,
-                gameStateRef.current.index,
-                ayudantia.questions.length,
-                optionOrderRef.current
-              ),
-              phase: gameStateRef.current.phase,
-              correctAnswerIndex:
-                gameStateRef.current.phase === GAME_PHASES.REVEAL ? currentQ.ans : null,
-              players: playersRef.current,
-            });
-          }
-
-          if (existingIdx >= 0) {
-            const copy = [...prev];
-            copy[existingIdx] = {
-              ...copy[existingIdx],
-              id: player.id || copy[existingIdx].id,
-              name: player.name,
-            };
-            return copy;
-          }
-
-          return [
-            ...prev,
-            {
-              id: player.id || Math.random().toString(36).substring(2, 9),
-              name: player.name,
-              score: 0,
-              lastEarnedPoints: 0,
-              correctAnswersCount: 0,
-            },
-          ];
+        const currentQ = currentQuestionRef.current;
+        serviceRef.current?.broadcastState({
+          ...createLiveQuestionPayload(currentQ, gameStateRef.current.index, ayudantia.questions.length, optionOrderRef.current),
+          phase: gameStateRef.current.phase,
+          correctAnswerIndex: gameStateRef.current.phase === GAME_PHASES.REVEAL ? currentQ.ans : null,
+          players: updated,
+          gameMode: gameModeRef.current,
+          teamScores: teamScoresRef.current,
+          activeResponderIds: activeResponderIdsRef.current,
         });
+      },
+      onTeamChoose: ({ playerId, playerName, teamId, teamName }) => {
+        if (gameStateRef.current.phase !== GAME_PHASES.LOBBY || gameModeRef.current !== "teams") return;
+        const updated = playersRef.current.map((player) => player.id === playerId || player.name === playerName
+          ? { ...player, teamId, teamName }
+          : player);
+        playersRef.current = updated;
+        setPlayers(updated);
+        broadcastLobbyState(updated);
       },
       onPlayerVote: ({ playerName, optionLabel, answer, playerId }) => {
         if (gameStateRef.current.phase !== GAME_PHASES.QUESTION) return;
+        if (gameModeRef.current === "teams" && (!playerId || !activeResponderIdsRef.current.includes(playerId))) return;
         const voterKey = playerId || String(playerName || "").toLowerCase();
         if (!voterKey || answeredPlayersRef.current.has(voterKey)) return;
         answeredPlayersRef.current.add(voterKey);
@@ -250,6 +287,17 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
           pointsEarned = Math.round(500 + 500 * remainingFraction);
         }
 
+        if (gameModeRef.current === "teams" && isCorrect) {
+          const responder = playersRef.current.find((player) => player.id === playerId);
+          if (responder?.teamId) {
+            const updatedTeams = teamScoresRef.current.map((team) => team.id === responder.teamId
+              ? { ...team, score: team.score + pointsEarned, correctAnswersCount: (team.correctAnswersCount || 0) + 1 }
+              : team);
+            teamScoresRef.current = updatedTeams;
+            setTeamScores(updatedTeams);
+          }
+        }
+
         const updated = playersRef.current.map((p) => {
             const isMatch = (playerId && p.id === playerId) || (p.name.toLowerCase() === playerName.toLowerCase());
             if (isMatch) {
@@ -274,7 +322,10 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
 
         // No hay razones para mantener el cronómetro abierto cuando todos los
         // participantes conectados ya respondieron esta pregunta.
-        if (playersRef.current.length > 0 && answeredPlayersRef.current.size >= playersRef.current.length) {
+        const expectedResponses = gameModeRef.current === "teams"
+          ? new Set(playersRef.current.filter((player) => player.teamId).map((player) => player.teamId)).size
+          : playersRef.current.length;
+        if (expectedResponses > 0 && answeredPlayersRef.current.size >= expectedResponses) {
           handleTimeUp();
         }
       },
@@ -287,6 +338,10 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
   }, [roomCode, ayudantia.questions.length, ayudantia.defaultTimerSeconds]);
 
   const handleStartGame = () => {
+    if (gameModeRef.current === "teams" && playersRef.current.some((player) => !player.teamId)) {
+      sileo.warning({ title: "Faltan equipos", description: "Todos los estudiantes deben elegir un equipo antes de comenzar." });
+      return;
+    }
     sessionStartedAtRef.current = new Date().toISOString();
     historySavedRef.current = false;
     questionStatsRef.current = ayudantia.questions.map((question, index) => ({
@@ -296,6 +351,10 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
       correctCount: 0,
     }));
     answeredPlayersRef.current.clear();
+    if (gameModeRef.current === "teams") {
+      teamScoresRef.current = Array.from(new Map(playersRef.current.filter((player) => player.teamId).map((player) => [player.teamId!, { id: player.teamId!, name: player.teamName || player.teamId!, score: 0, correctAnswersCount: 0 }])).values());
+      setTeamScores(teamScoresRef.current);
+    }
     questionEndedRef.current = false;
     setPlayers((previous) => {
       const reset = previous.map((player) => ({ ...player, score: 0, lastEarnedPoints: 0, correctAnswersCount: 0 }));
@@ -303,6 +362,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
       return reset;
     });
     const optionOrder = getQuestionOrder(currentQuestion);
+    activeResponderIdsRef.current = getActiveResponders(playersRef.current, 0);
     optionOrderRef.current = optionOrder;
     setCurrentQuestionIndex(0);
     setVotes({});
@@ -316,6 +376,8 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
       serviceRef.current.broadcastNext({
         timerSeconds: getQuestionTimeLimitSeconds(currentQuestion, ayudantia.defaultTimerSeconds || 60),
         ...createLiveQuestionPayload(currentQuestion, 0, ayudantia.questions.length, optionOrder),
+        gameMode: gameModeRef.current,
+        activeResponderIds: activeResponderIdsRef.current,
       });
     }
   };
@@ -330,6 +392,8 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
         correctAnswerIndex: currentQuestion.ans,
         answerType: currentQuestion.type || "single_choice",
         players: playersRef.current,
+        gameMode: gameModeRef.current,
+        teamScores: teamScoresRef.current,
       });
     }
   };
@@ -341,6 +405,8 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
       serviceRef.current.broadcastState({
         phase: GAME_PHASES.LEADERBOARD,
         players: playersRef.current,
+        gameMode: gameModeRef.current,
+        teamScores: teamScoresRef.current,
       });
     }
   };
@@ -350,6 +416,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
       audioService.stopMusic();
       setPhase(GAME_PHASES.FINISHED);
       const perfectPlayers = playersRef.current.filter((player) => player.correctAnswersCount === ayudantia.questions.length);
+      const perfectTeamIds = new Set(teamScoresRef.current.filter((team) => team.correctAnswersCount === ayudantia.questions.length).map((team) => team.id));
       if (ownerId && sessionStartedAtRef.current && !historySavedRef.current && !historySaveInProgressRef.current) {
         historySaveInProgressRef.current = true;
         void saveCompletedSession({
@@ -372,7 +439,11 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
       if (serviceRef.current) {
         serviceRef.current.broadcastEnd({
           players: playersRef.current,
-          perfectPlayerIds: perfectPlayers.map((player) => player.id),
+          gameMode: gameModeRef.current,
+          teamScores: teamScoresRef.current,
+          perfectPlayerIds: gameModeRef.current === "teams"
+            ? playersRef.current.filter((player) => player.teamId && perfectTeamIds.has(player.teamId)).map((player) => player.id)
+            : perfectPlayers.map((player) => player.id),
           rewardCard: {
             title: ayudantia.cardTitle || ayudantia.title,
             subtitle: ayudantia.cardSubtitle || ayudantia.description || "Tarjeta de logro desbloqueada",
@@ -391,6 +462,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
     answeredPlayersRef.current.clear();
     questionEndedRef.current = false;
     const optionOrder = getQuestionOrder(nextQuestion);
+    activeResponderIdsRef.current = getActiveResponders(playersRef.current, nextIndex);
     optionOrderRef.current = optionOrder;
     setCurrentQuestionIndex(nextIndex);
     setVotes({});
@@ -404,6 +476,8 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
       serviceRef.current.broadcastNext({
         timerSeconds: getQuestionTimeLimitSeconds(nextQuestion, ayudantia.defaultTimerSeconds || 60),
         ...createLiveQuestionPayload(nextQuestion, nextIndex, ayudantia.questions.length, optionOrder),
+        gameMode: gameModeRef.current,
+        activeResponderIds: activeResponderIdsRef.current,
       });
     }
   };
@@ -416,6 +490,11 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
 
   const totalVotesCount = Object.values(votes).reduce((sum, v) => sum + v, 0);
   const perfectPlayers = players.filter((player) => player.correctAnswersCount === ayudantia.questions.length);
+  const perfectTeamNames = teamScores.filter((team) => team.correctAnswersCount === ayudantia.questions.length).map((team) => team.name);
+  const teamCount = new Set(players.filter((player) => player.teamId).map((player) => player.teamId)).size;
+  const leaderboardPlayers: PlayerScore[] = gameMode === "teams"
+    ? teamScores.map((team) => ({ id: team.id, name: team.name, score: team.score, lastEarnedPoints: 0, correctAnswersCount: 0 }))
+    : players;
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "var(--color-bg)", padding: "24px 20px" }}>
@@ -539,6 +618,16 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
         {/* 1. Fase de Lobby */}
         {phase === GAME_PHASES.LOBBY && (
           <Card style={{ padding: "36px 32px" }}>
+            <div style={{ maxWidth: 620, margin: "0 auto 28px", textAlign: "center" }}>
+              <h3 style={{ color: "var(--color-primary)", fontSize: 20, fontWeight: 800, margin: "0 0 12px" }}>Modo de juego</h3>
+              <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+                <Button variant={gameMode === "individual" ? "primary" : "secondary"} onClick={() => setSessionMode("individual")}>Individual</Button>
+                <Button variant={gameMode === "teams" ? "primary" : "secondary"} onClick={() => setSessionMode("teams")}>Por equipos</Button>
+              </div>
+              <p style={{ color: "var(--color-text-secondary)", fontSize: 14, margin: "10px 0 0" }}>
+                {gameMode === "teams" ? "Cada equipo responde con un integrante distinto en cada pregunta." : "Cada estudiante responde por su cuenta, como siempre."}
+              </p>
+            </div>
             <div style={{ textAlign: "center", marginBottom: "28px" }}>
               <span style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-accent)", textTransform: "uppercase", letterSpacing: "1px" }}>
                 Sala de Espera Docente
@@ -627,7 +716,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
                             border: "1px solid #C7D2FE",
                           }}
                         >
-                          {p.name}
+                          {p.name}{gameMode === "teams" && (p.teamName ? ` · ${p.teamName}` : " · sin equipo")}
                         </span>
                       ))}
                     </div>
@@ -642,9 +731,9 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
                 size="lg"
                 icon={Play}
                 onClick={handleStartGame}
-                disabled={players.length === 0}
+                disabled={players.length === 0 || (gameMode === "teams" && players.some((player) => !player.teamId))}
               >
-                Comenzar Quiz ({players.length} estudiantes)
+                Comenzar Quiz ({gameMode === "teams" ? teamCount : players.length} {gameMode === "teams" ? "equipos" : "estudiantes"})
               </Button>
             </div>
           </Card>
@@ -667,7 +756,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
               />
               <Badge variant="amber" icon={Users}>
                 <span style={{ fontSize: "16px", fontWeight: 700 }}>
-                  {responseCount} / {players.length} respuestas
+                  {responseCount} / {teamCount || players.length} respuestas
                 </span>
               </Badge>
             </div>
@@ -767,7 +856,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
         {phase === GAME_PHASES.LEADERBOARD && (
           <div>
             <Card title="Tabla de Posiciones Parcial" subtitle="Puntajes dinamicos calculados segun tiempo y precision" style={{ maxWidth: "860px", margin: "0 auto" }}>
-              <Leaderboard players={players} />
+              <Leaderboard players={leaderboardPlayers} />
             </Card>
 
             <div style={{ marginTop: "28px", display: "flex", justifyContent: "flex-end" }}>
@@ -794,21 +883,21 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
             </Card>
 
             <Card
-              title={`Logro perfecto · ${perfectPlayers.length}`}
-              subtitle={`Participantes con ${ayudantia.questions.length} de ${ayudantia.questions.length} respuestas correctas`}
+              title={`Logro perfecto · ${gameMode === "teams" ? perfectTeamNames.length : perfectPlayers.length}`}
+              subtitle={gameMode === "teams" ? `Equipos con ${ayudantia.questions.length} de ${ayudantia.questions.length} respuestas correctas` : `Participantes con ${ayudantia.questions.length} de ${ayudantia.questions.length} respuestas correctas`}
               style={{ maxWidth: "860px", margin: "0 auto 28px" }}
             >
-              {perfectPlayers.length ? (
+              {(gameMode === "teams" ? perfectTeamNames.length : perfectPlayers.length) ? (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                  {perfectPlayers.map((player) => <Badge key={player.id} variant="success" icon={Trophy}>{player.name}</Badge>)}
+                  {(gameMode === "teams" ? perfectTeamNames : perfectPlayers.map((player) => player.name)).map((name) => <Badge key={name} variant="success" icon={Trophy}>{name}</Badge>)}
                 </div>
               ) : (
-                <p style={{ margin: 0, color: "var(--color-text-secondary)" }}>Nadie obtuvo todas las respuestas correctas esta vez. ¡A intentarlo de nuevo!</p>
+                <p style={{ margin: 0, color: "var(--color-text-secondary)" }}>{gameMode === "teams" ? "Ningún equipo respondió todo correctamente esta vez. ¡A intentarlo de nuevo!" : "Nadie obtuvo todas las respuestas correctas esta vez. ¡A intentarlo de nuevo!"}</p>
               )}
             </Card>
 
             <Card title="Podio Final y Clasificacion" subtitle="Resultados definitivos de la sesion" style={{ maxWidth: "860px", margin: "0 auto" }}>
-              <Leaderboard players={players} maxEntries={10} />
+              <Leaderboard players={leaderboardPlayers} maxEntries={10} />
             </Card>
 
             <div style={{ marginTop: "28px", display: "flex", justifyContent: "center", gap: "14px" }}>

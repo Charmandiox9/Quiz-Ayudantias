@@ -12,6 +12,7 @@ interface RealtimeCallbacks {
   onRoomClosed?: (payload: Record<string, unknown>) => void;
   onPresenceSync?: (players: LivePlayer[]) => void;
   onPlayerReject?: (payload: Record<string, unknown>) => void;
+  onTeamChoose?: (payload: { playerId: string; playerName: string; teamId: string; teamName: string }) => void;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -47,6 +48,7 @@ export class RealtimeQuizService {
     onRoomClosed,
     onPresenceSync,
     onPlayerReject,
+    onTeamChoose,
   }: RealtimeCallbacks = {}): void {
     if (!isSupabaseConfigured || !supabase) {
       console.warn("Supabase no esta configurado. Modo local activado.");
@@ -100,6 +102,15 @@ export class RealtimeQuizService {
     if (onPlayerReject) {
       this.channel.on("broadcast", { event: "player:reject" }, ({ payload }: { payload: unknown }) => {
         if (isRecord(payload)) onPlayerReject(payload);
+      });
+    }
+
+    if (onTeamChoose) {
+      this.channel.on("broadcast", { event: "team:choose" }, ({ payload }: { payload: unknown }) => {
+        if (
+          isRecord(payload) && typeof payload.playerId === "string" && typeof payload.playerName === "string" &&
+          typeof payload.teamId === "string" && typeof payload.teamName === "string"
+        ) onTeamChoose(payload as { playerId: string; playerName: string; teamId: string; teamName: string });
       });
     }
 
@@ -229,6 +240,10 @@ export class RealtimeQuizService {
 
   broadcastReject(rejectPayload: Record<string, unknown>): Promise<boolean> {
     return this.broadcastEvent("player:reject", rejectPayload);
+  }
+
+  broadcastTeamChoose(payload: { playerId: string; playerName: string; teamId: string; teamName: string }): Promise<boolean> {
+    return this.broadcastEvent("team:choose", payload);
   }
 
   async leavePresence(): Promise<void> {

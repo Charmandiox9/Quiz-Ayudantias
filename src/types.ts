@@ -142,6 +142,15 @@ export interface PlayerScore {
   lastEarnedPoints: number;
   correctAnswersCount: number;
   lastOption?: string;
+  teamId?: string;
+  teamName?: string;
+}
+
+export interface TeamScore {
+  id: string;
+  name: string;
+  score: number;
+  correctAnswersCount?: number;
 }
 
 export interface SessionHistoryResult {
@@ -183,6 +192,9 @@ export interface LiveGameState {
   players: PlayerScore[];
   perfectPlayerIds?: string[];
   rewardCard?: RewardCardInfo;
+  gameMode?: "individual" | "teams";
+  activeResponderIds?: string[];
+  teamScores?: TeamScore[];
 }
 
 export interface LivePlayer {
@@ -193,6 +205,8 @@ export interface LivePlayer {
   lastEarnedPoints?: number;
   correctAnswersCount?: number;
   lastOption?: string;
+  teamId?: string;
+  teamName?: string;
 }
 
 export interface LiveQuestionPayload {
@@ -205,6 +219,8 @@ export interface LiveQuestionPayload {
   optionOrder: number[];
   questionConfig?: QuestionConfig;
   timerSeconds?: number;
+  gameMode?: "individual" | "teams";
+  activeResponderIds?: string[];
 }
 
 export interface LiveVotePayload {
@@ -221,7 +237,8 @@ export type RealtimeEventName =
   | "game:next"
   | "game:end"
   | "game:closed"
-  | "player:reject";
+  | "player:reject"
+  | "team:choose";
 
 export interface RewardCardInfo {
   title: string;

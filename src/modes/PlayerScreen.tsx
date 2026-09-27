@@ -11,7 +11,7 @@ import SortableAnswerList from "../components/quiz/SortableAnswerList";
 import QuestionCard from "../components/quiz/QuestionCard";
 import { getPlayerDeviceId, clearActiveSession } from "../utils/session";
 import { answerLabels, formatAnswerText, isAnswerCorrect, isMultipleSelect, isOrdering, isShortAnswer, isWrittenAnswer, isStructuredAnswer } from "../utils/answers";
-import { CheckCircle, Clock, Trophy, ArrowLeft, Wifi, AlertTriangle, XCircle, Award, Zap } from "lucide-react";
+import { CheckCircle, Clock, Trophy, ArrowLeft, Wifi, AlertTriangle, XCircle, Award, Zap, Users } from "lucide-react";
 import type { PlayerInfo, LiveGameState, SelectedAnswer } from "../types";
 
 export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: PlayerInfo; onExit: () => void }) {
@@ -33,6 +33,7 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
   const [isConnected, setIsConnected] = useState(false);
   const [localScore, setLocalScore] = useState(0);
   const [localLastEarned, setLocalLastEarned] = useState<number | null>(null);
+  const [teamNameInput, setTeamNameInput] = useState("");
   const serviceRef = useRef<RealtimeQuizService | null>(null);
 
   const playerId = playerInfo.playerId || getPlayerDeviceId();
@@ -64,7 +65,8 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
             (p) => (playerId && p.id === playerId) || p.name.toLowerCase() === playerInfo.name.toLowerCase()
           );
           if (myEntry) {
-            setLocalScore(myEntry.score || 0);
+            const teamScore = state.teamScores?.find((team) => team.id === myEntry.teamId)?.score;
+            setLocalScore(state.gameMode === "teams" ? teamScore || 0 : myEntry.score || 0);
             if (myEntry.lastEarnedPoints !== undefined) {
               setLocalLastEarned(myEntry.lastEarnedPoints);
             }
@@ -84,6 +86,8 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
           optionTexts: data.optionTexts || [],
           optionOrder: data.optionOrder || [],
           questionConfig: data.questionConfig,
+          gameMode: data.gameMode,
+          activeResponderIds: data.activeResponderIds,
         }));
         setSelectedOption(data.answerType === "ordering" ? (data.optionOrder || []) : null);
         setHasVoted(false);
@@ -109,7 +113,7 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
   }, [playerInfo.roomCode, playerInfo.name, playerId, onExit]);
 
   const sendVote = (answer: SelectedAnswer) => {
-    if (hasVoted || gameState.phase !== GAME_PHASES.QUESTION) return;
+    if (hasVoted || gameState.phase !== GAME_PHASES.QUESTION || (gameState.gameMode === "teams" && !gameState.activeResponderIds?.includes(playerId))) return;
     setHasVoted(true);
 
     if (serviceRef.current) {
@@ -123,6 +127,7 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
   };
 
   const handleVote = (answer: SelectedAnswer) => {
+    if (gameState.gameMode === "teams" && !gameState.activeResponderIds?.includes(playerId)) return;
     if (typeof answer !== "number") return;
     const optionIndex = answer;
     if (hasVoted || gameState.phase !== GAME_PHASES.QUESTION) return;
@@ -159,6 +164,18 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
     onExit();
   };
 
+  const chooseTeam = (name: string) => {
+    const cleanName = name.trim().replace(/\s+/g, " ").slice(0, 24);
+    if (!cleanName) return;
+    const teamId = cleanName.toLocaleLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    serviceRef.current?.broadcastTeamChoose({ playerId, playerName: playerInfo.name, teamId, teamName: cleanName });
+    setTeamNameInput("");
+  };
+
+  const myPlayerEntry = gameState.players.find((player) => player.id === playerId || player.name.toLowerCase() === playerInfo.name.toLowerCase());
+  const teamNames = Array.from(new Map(gameState.players.filter((player) => player.teamId && player.teamName).map((player) => [player.teamId!, player.teamName!])).entries());
+  const canAnswer = gameState.gameMode !== "teams" || gameState.activeResponderIds?.includes(playerId);
+
   const resultQuestion = { type: gameState.answerType, ans: gameState.correctAnswerIndex, opts: gameState.optionTexts, config: gameState.questionConfig };
   const correctLetter = gameState.correctAnswerIndex !== null && gameState.correctAnswerIndex !== undefined
     ? (isWrittenAnswer(resultQuestion) || isOrdering(resultQuestion) || isStructuredAnswer(resultQuestion)
@@ -181,9 +198,12 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
     : OPTION_LABELS.slice(0, 4);
 
   // Calculo de ranking personal
-  const sortedPlayers = [...(gameState.players || [])].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const sortedPlayers = gameState.gameMode === "teams"
+    ? (gameState.teamScores || []).map((team) => ({ id: team.id, name: team.name, score: team.score, lastEarnedPoints: 0, correctAnswersCount: 0 }))
+    : [...(gameState.players || [])];
+  sortedPlayers.sort((a, b) => (b.score || 0) - (a.score || 0));
   const myRankIndex = sortedPlayers.findIndex(
-    (p) => (playerId && p.id === playerId) || p.name.toLowerCase() === playerInfo.name.toLowerCase()
+    (p) => gameState.gameMode === "teams" ? p.id === myPlayerEntry?.teamId : (playerId && p.id === playerId) || p.name.toLowerCase() === playerInfo.name.toLowerCase()
   );
   const myRank = myRankIndex >= 0 ? myRankIndex + 1 : null;
   const totalPlayersCount = sortedPlayers.length;
@@ -192,7 +212,7 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
   );
   const earnedPerfectCard = gameState.phase === GAME_PHASES.FINISHED && (
     gameState.perfectPlayerIds?.includes(playerId) ||
-    (myFinalResult && myFinalResult.correctAnswersCount === gameState.totalQuestions)
+    (gameState.gameMode !== "teams" && myFinalResult && myFinalResult.correctAnswersCount === gameState.totalQuestions)
   );
 
   return (
@@ -244,12 +264,36 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
                 {playerInfo.roomCode}
               </span>
             </div>
+            {gameState.gameMode === "teams" && (
+              <div style={{ marginTop: 24, padding: 18, background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 14, textAlign: "left" }}>
+                <h4 style={{ margin: "0 0 8px", color: "#1E40AF", fontSize: 18 }}>Forma tu equipo</h4>
+                <p style={{ margin: "0 0 12px", color: "#1E3A8A", fontSize: 14 }}>El equipo responderá en conjunto. En cada pregunta le tocará a una persona distinta.</p>
+                {myPlayerEntry?.teamName && <p style={{ margin: "0 0 12px", fontWeight: 800, color: "var(--color-primary)" }}>Tu equipo: {myPlayerEntry.teamName}</p>}
+                {teamNames.length > 0 && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>{teamNames.map(([id, name]) => (
+                  <Button key={id} size="sm" variant={myPlayerEntry?.teamId === id ? "primary" : "secondary"} onClick={() => chooseTeam(name)}>{myPlayerEntry?.teamId === id ? `✓ ${name}` : `Unirse a ${name}`}</Button>
+                ))}</div>}
+                <form onSubmit={(event) => { event.preventDefault(); chooseTeam(teamNameInput); }} style={{ display: "flex", gap: 8 }}>
+                  <input value={teamNameInput} onChange={(event) => setTeamNameInput(event.target.value)} maxLength={24} placeholder="Nombre de equipo nuevo" aria-label="Nombre de equipo nuevo" style={{ minWidth: 0, flex: 1, padding: "10px 12px", borderRadius: 8, border: "1px solid #CBD5E1", font: "inherit" }} />
+                  <Button type="submit" disabled={!teamNameInput.trim()}>Crear / unirse</Button>
+                </form>
+                <p style={{ margin: "12px 0 0", color: "#1E3A8A", fontSize: 13 }}>Integrantes: {gameState.players.filter((player) => player.teamId === myPlayerEntry?.teamId).map((player) => player.name).join(", ") || "elige un equipo para comenzar"}</p>
+              </div>
+            )}
           </Card>
         )}
 
         {/* 2. Pantalla de Votacion */}
         {gameState.phase === GAME_PHASES.QUESTION && (
           <div>
+            {gameState.gameMode === "teams" && !canAnswer ? (
+              <Card style={{ textAlign: "center", padding: 36 }}>
+                <Users size={38} color="var(--color-primary)" style={{ margin: "0 auto 12px" }} />
+                <h3 style={{ margin: "0 0 8px", color: "var(--color-primary)", fontSize: 22 }}>Tu equipo está respondiendo</h3>
+                <p style={{ margin: 0, color: "var(--color-text-secondary)" }}>
+                  Le toca a <strong>{gameState.players.find((player) => player.teamId === myPlayerEntry?.teamId && gameState.activeResponderIds?.includes(player.id))?.name || "tu compañero"}</strong>. La pregunta aparecerá para todos cuando termine el tiempo.
+                </p>
+              </Card>
+            ) : <>
             <div style={{ textAlign: "center", marginBottom: "16px" }}>
               <span style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-secondary)" }}>
                 Pregunta {gameState.questionIndex + 1} de {gameState.totalQuestions}
@@ -359,6 +403,7 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
                 </p>
               </div>
             )}
+            </>}
           </div>
         )}
 
@@ -481,7 +526,7 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
           <>
             {earnedPerfectCard && gameState.rewardCard && (
               <div style={{ marginBottom: 20 }}>
-                <p style={{ textAlign: "center", color: "#15803D", fontWeight: 800, fontSize: 18 }}>¡Respondiste todo correctamente! Desbloqueaste una tarjeta.</p>
+                <p style={{ textAlign: "center", color: "#15803D", fontWeight: 800, fontSize: 18 }}>{gameState.gameMode === "teams" ? "¡Tu equipo respondió todo correctamente! Desbloquearon una tarjeta." : "¡Respondiste todo correctamente! Desbloqueaste una tarjeta."}</p>
                 <RewardCard
                   title={gameState.rewardCard.title}
                   subtitle={gameState.rewardCard.subtitle}
