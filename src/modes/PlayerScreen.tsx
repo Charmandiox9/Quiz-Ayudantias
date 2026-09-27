@@ -153,7 +153,8 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
     if (Array.isArray(selectedOption) && selectedOption.length > 1) sendVote(selectedOption);
   };
 
-  const handleExit = () => {
+  const handleExit = async () => {
+    await serviceRef.current?.leavePresence();
     clearActiveSession();
     onExit();
   };

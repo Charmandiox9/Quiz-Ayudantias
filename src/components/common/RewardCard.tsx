@@ -247,7 +247,11 @@ export default function RewardCard({
     const cleanFilename = `Carta_IS_${cleanId}.png`;
 
     try {
-      const response = await fetch(activeImgSrc);
+      const isRemoteImage = /^https?:\/\//i.test(activeImgSrc);
+      const downloadImageUrl = isRemoteImage
+        ? `/api/images/proxy?url=${encodeURIComponent(activeImgSrc)}`
+        : activeImgSrc;
+      const response = await fetch(downloadImageUrl);
       if (!response.ok) {
         throw new Error(`No se pudo cargar el diseño de la carta (${response.status}).`);
       }
@@ -342,7 +346,7 @@ export default function RewardCard({
       sileo.error({
         title: "No se pudo descargar la carta",
         description: error instanceof Error
-          ? `${error.message} Si el diseño está en R2, permite GET y PUT en Allowed Methods y verifica que este dominio esté en Allowed Origins.`
+          ? error.message
           : "Revisa la conexión e inténtalo nuevamente.",
       });
     } finally {

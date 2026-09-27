@@ -231,6 +231,18 @@ export class RealtimeQuizService {
     return this.broadcastEvent("player:reject", rejectPayload);
   }
 
+  async leavePresence(): Promise<void> {
+    if (!this.channel || !this.isSubscribed) {
+      this.pendingTrack = null;
+      return;
+    }
+    try {
+      await this.channel.untrack();
+    } catch (err) {
+      console.error("Error al retirar presencia:", err);
+    }
+  }
+
   unsubscribe() {
     if (this.channel) {
       supabase?.removeChannel(this.channel);
