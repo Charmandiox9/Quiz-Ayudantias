@@ -149,33 +149,26 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
       },
       onPresenceSync: (activePresences) => {
         setPlayers((prev) => {
-          const currentMap = new Map(prev.map((p) => [p.name.toLowerCase(), p]));
-          let updated = false;
-
+          const activePlayers = new Map<string, PlayerScore>();
           for (const item of activePresences) {
             if (item.role === "host") continue;
-            const lower = item.name.toLowerCase();
-            const existing = currentMap.get(lower);
-
-            if (!existing) {
-              currentMap.set(lower, {
-                id: item.id || Math.random().toString(36).substring(2, 9),
-                name: item.name,
-                score: item.score || 0,
-                lastEarnedPoints: 0,
-                correctAnswersCount: 0,
-              });
-              updated = true;
-            } else if (item.id && existing.id !== item.id) {
-              currentMap.set(lower, {
-                ...existing,
-                id: item.id,
-              });
-              updated = true;
-            }
+            const existing = prev.find((player) =>
+              (item.id && player.id === item.id) || player.name.toLowerCase() === item.name.toLowerCase()
+            );
+            const key = item.id || item.name.toLowerCase();
+            activePlayers.set(key, {
+              id: item.id || existing?.id || Math.random().toString(36).substring(2, 9),
+              name: item.name,
+              score: existing?.score ?? item.score ?? 0,
+              lastEarnedPoints: existing?.lastEarnedPoints ?? 0,
+              correctAnswersCount: existing?.correctAnswersCount ?? 0,
+              ...(existing?.lastOption ? { lastOption: existing.lastOption } : {}),
+            });
           }
 
-          return updated ? Array.from(currentMap.values()) : prev;
+          const synchronizedPlayers = Array.from(activePlayers.values());
+          playersRef.current = synchronizedPlayers;
+          return synchronizedPlayers;
         });
       },
       onPlayerJoin: (player) => {
