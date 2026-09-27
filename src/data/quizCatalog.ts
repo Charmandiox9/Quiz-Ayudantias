@@ -96,6 +96,10 @@ export function createQuiz({ subjectId, title, description = "", cardTitle = "",
     if (!question.prompt) return true;
     if (!isValidQuestionTimeLimitSeconds(question.timeLimitSeconds)) return true;
     if (question.type === "short_answer") return question.acceptedAnswers.length === 0;
+    if (question.type === "fill_blanks") return !question.prompt.match(/\{\{\d+\}\}/g)?.length || question.blankAnswers.split(/\r?\n/).filter((line) => line.trim()).length !== question.prompt.match(/\{\{\d+\}\}/g)?.length;
+    if (question.type === "numeric") return !Number.isFinite(Number(question.acceptedAnswers)) || !Number.isFinite(Number(question.numericTolerance)) || Number(question.numericTolerance) < 0;
+    if (question.type === "matching") return question.pairs.length < 2 || question.pairs.some((pair) => !pair.left.trim() || !pair.right.trim());
+    if (question.type === "categorization") return question.categories.length < 2 || question.categories.some((category) => !category.name.trim() || !category.items.some((item) => item.trim())) || question.categories.flatMap((category) => category.items).some((item) => !item.trim());
     if (question.type === "ordering") {
       return question.options.length < 2 || question.options.some((option) => !option);
     }
@@ -120,6 +124,18 @@ export function createQuiz({ subjectId, title, description = "", cardTitle = "",
     }
     if (invalidQuestion.type === "short_answer") {
       throw new Error("Agrega al menos una respuesta aceptada en cada pregunta corta.");
+    }
+    if (invalidQuestion.type === "fill_blanks") {
+      throw new Error("Agrega un marcador {{1}}, {{2}}, etc. en el enunciado y una línea de respuesta para cada espacio.");
+    }
+    if (invalidQuestion.type === "numeric") {
+      throw new Error("Indica un valor numérico correcto y una tolerancia igual o mayor que cero.");
+    }
+    if (invalidQuestion.type === "matching") {
+      throw new Error("Completa al menos dos parejas, con un elemento en cada columna.");
+    }
+    if (invalidQuestion.type === "categorization") {
+      throw new Error("Completa al menos dos categorías e incluye elementos en cada una.");
     }
     if (invalidQuestion.type === "ordering") {
       throw new Error("Completa al menos dos elementos para ordenar.");
@@ -166,12 +182,31 @@ export function createQuiz({ subjectId, title, description = "", cardTitle = "",
       ans:
         question.type === "short_answer"
           ? question.acceptedAnswers
+          : question.type === "fill_blanks"
+            ? question.blankAnswers.split(/\r?\n/).map((line) => line.split("|").map((answer) => answer.trim()).filter(Boolean)[0] || "")
+            : question.type === "numeric"
+              ? Number(question.acceptedAnswers)
+              : question.type === "matching"
+                ? question.pairs.map((_, index) => index)
+                : question.type === "categorization"
+                  ? question.categories.flatMap((category, categoryIndex) => category.items.map(() => categoryIndex))
           : question.type === "ordering"
             ? question.options.map((_, index) => index)
             : question.type === "multiple_select"
               ? question.correctOptions.sort((a, b) => a - b)
               : Number(question.correctOption),
+      ...(question.type === "matching" ? { opts: question.pairs.map((pair) => pair.left), config: { pairs: question.pairs.map((pair) => ({ ...pair })) } } : {}),
+      ...(question.type === "categorization" ? { opts: question.categories.flatMap((category) => category.items), config: { categories: question.categories.map((category) => ({ ...category })) } } : {}),
       exp: question.explanation?.trim() || "",
+      config: question.type === "fill_blanks"
+        ? { blankAnswers: question.blankAnswers.split(/\r?\n/).map((line) => line.split("|").map((answer) => answer.trim()).filter(Boolean)) }
+        : question.type === "numeric"
+          ? { numericTolerance: Number(question.numericTolerance) || 0 }
+          : question.type === "matching"
+            ? { pairs: question.pairs.map((pair) => ({ left: pair.left.trim(), right: pair.right.trim() })) }
+            : question.type === "categorization"
+              ? { categories: question.categories.map((category) => ({ name: category.name.trim(), items: category.items.map((item) => item.trim()) })) }
+              : undefined,
     })),
   };
 }

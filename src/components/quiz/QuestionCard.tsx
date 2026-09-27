@@ -7,7 +7,7 @@ import AnswerOptionMarkdown from './AnswerOptionMarkdown';
 import SortableAnswerList from './SortableAnswerList';
 import { BookOpen, AlertCircle, Check } from 'lucide-react';
 import { OPTION_LABELS, OPTION_COLORS } from '../../config/constants';
-import { formatAnswerText, getAnswerIndices, isAnswerCorrect, isMultipleSelect, isOrdering, isShortAnswer } from '../../utils/answers';
+import { formatAnswerText, getAnswerIndices, isAnswerCorrect, isMultipleSelect, isOrdering, isShortAnswer, isWrittenAnswer, isStructuredAnswer } from '../../utils/answers';
 import type { QuizQuestion, SelectedAnswer } from '../../types';
 
 interface QuestionCardProps {
@@ -47,6 +47,11 @@ export default function QuestionCard({
   const multipleSelect = isMultipleSelect(question);
   const ordering = isOrdering(question);
   const shortAnswer = isShortAnswer(question);
+  const writtenAnswer = isWrittenAnswer(question);
+  const structuredAnswer = isStructuredAnswer(question);
+  const blankCount = question.q.match(/\{\{\d+\}\}/g)?.length || 0;
+  const blanks = (() => { try { const value: unknown = JSON.parse(typeof selectedAnswerIndex === 'string' ? selectedAnswerIndex : '[]'); return Array.isArray(value) ? value.map(String) : []; } catch { return []; } })();
+  const structuredValues = Array.isArray(selectedAnswerIndex) ? selectedAnswerIndex.filter((value): value is number => typeof value === 'number') : [];
   const orderingIndices = Array.isArray(selectedAnswerIndex)
     ? selectedAnswerIndex
     : ordering && !onReorderAnswer ? (question.opts || []).map((_, index) => index) : [];
@@ -97,7 +102,7 @@ export default function QuestionCard({
           lineHeight: 1.35,
         }}
       >
-        <MarkdownContent>{question.q}</MarkdownContent>
+        <MarkdownContent>{question.type === 'fill_blanks' ? question.q.replace(/\{\{\d+\}\}/g, '＿＿＿＿') : question.q}</MarkdownContent>
       </div>
 
       {question.image && (
@@ -166,6 +171,25 @@ export default function QuestionCard({
         </div>
       )}
 
+      {question.type === 'fill_blanks' && <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+        {Array.from({ length: blankCount }, (_, index) => <label key={index}>Espacio {index + 1}<input value={blanks[index] || ''} disabled={isRevealed || !onSelectAnswer} onChange={(event) => { const next = Array.from({ length: blankCount }, (_, item) => blanks[item] || ''); next[index] = event.target.value; onSelectAnswer?.(JSON.stringify(next)); }} style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: 12, borderRadius: 8, border: '1px solid var(--color-border)' }} /></label>)}
+        {isRevealed && <p>Respuestas: {formatAnswerText(question, question.ans)}</p>}
+        {onSubmitAnswer && !isRevealed && <Button variant="primary" onClick={onSubmitAnswer} disabled={blanks.length !== blankCount || blanks.some((value) => !value.trim())}>Enviar respuestas</Button>}
+      </div>}
+      {question.type === 'numeric' && <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+        <label htmlFor="numeric-response">Tu respuesta numérica</label><input id="numeric-response" type="number" step="any" value={typeof selectedAnswerIndex === 'string' ? selectedAnswerIndex : ''} onChange={(event) => onSelectAnswer?.(event.target.value)} disabled={isRevealed || !onSelectAnswer} style={{ width: '100%', boxSizing: 'border-box', padding: 12, borderRadius: 8, border: '1px solid var(--color-border)' }} />
+        {isRevealed && <p>Valor correcto: {formatAnswerText(question, question.ans)}</p>}
+        {onSubmitAnswer && !isRevealed && <Button variant="primary" onClick={onSubmitAnswer} disabled={!String(selectedAnswerIndex || '').trim()}>Enviar respuesta</Button>}
+      </div>}
+      {structuredAnswer && question.type === 'matching' && <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+        {(question.config?.pairs || []).map((pair, index) => <label key={index} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, alignItems: 'center' }}><span>{pair.left}</span><select value={structuredValues[index] ?? ''} disabled={isRevealed || !onSelectAnswer} onChange={(event) => { const next = Array.from({ length: question.config?.pairs?.length || 0 }, (_, i) => structuredValues[i] ?? -1); next[index] = Number(event.target.value); onSelectAnswer?.(next); }}><option value="">Selecciona…</option>{(question.config?.pairs || []).map((choice, choiceIndex) => <option key={choiceIndex} value={choiceIndex}>{choice.right}</option>)}</select></label>)}
+        {onSubmitAnswer && !isRevealed && <Button variant="primary" onClick={onSubmitAnswer} disabled={structuredValues.length !== question.config?.pairs?.length || structuredValues.some((value) => value < 0)}>Confirmar relaciones</Button>}
+      </div>}
+      {structuredAnswer && question.type === 'categorization' && <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+        {(question.config?.categories || []).flatMap((category) => category.items).map((item, index) => <label key={index} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, alignItems: 'center' }}><span>{item}</span><select value={structuredValues[index] ?? ''} disabled={isRevealed || !onSelectAnswer} onChange={(event) => { const count = question.config?.categories?.flatMap((category) => category.items).length || 0; const next = Array.from({ length: count }, (_, i) => structuredValues[i] ?? -1); next[index] = Number(event.target.value); onSelectAnswer?.(next); }}><option value="">Selecciona…</option>{(question.config?.categories || []).map((category, categoryIndex) => <option key={categoryIndex} value={categoryIndex}>{category.name}</option>)}</select></label>)}
+        {onSubmitAnswer && !isRevealed && <Button variant="primary" onClick={onSubmitAnswer} disabled={structuredValues.length !== question.config?.categories?.flatMap((category) => category.items).length || structuredValues.some((value) => value < 0)}>Confirmar clasificación</Button>}
+      </div>}
+
       {ordering && onReorderAnswer && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 16 }}>
           <SortableAnswerList
@@ -187,7 +211,7 @@ export default function QuestionCard({
         </div>
       )}
 
-      {!shortAnswer && !ordering && <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+      {!shortAnswer && !ordering && !writtenAnswer && !structuredAnswer && <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
         {(question.opts || []).map((optionText, idx) => {
           const label = OPTION_LABELS[idx] || String(idx + 1);
           const isSelected = selectedIndices.includes(idx);

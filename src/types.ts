@@ -3,10 +3,20 @@ export type QuestionType =
   | "multiple_select"
   | "true_false"
   | "short_answer"
-  | "ordering";
+  | "ordering"
+  | "fill_blanks"
+  | "matching"
+  | "numeric"
+  | "categorization";
 
 export type AnswerValue = number | string | number[] | string[];
 export type SelectedAnswer = number | string | number[] | null;
+export interface QuestionConfig {
+  blankAnswers?: string[][];
+  numericTolerance?: number;
+  pairs?: Array<{ left: string; right: string }>;
+  categories?: Array<{ name: string; items: string[] }>;
+}
 export type QuizStatus = "draft" | "published" | "archived";
 export type ImageAssetType = "question" | "subject-seal" | "quiz-card";
 export type GamePhase =
@@ -28,6 +38,7 @@ export interface QuizQuestion {
   diagramSnippet?: string;
   image?: string;
   timeLimitSeconds?: number | null;
+  config?: QuestionConfig;
 }
 
 export interface AnswerQuestion {
@@ -35,6 +46,7 @@ export interface AnswerQuestion {
   ans?: AnswerValue | null;
   opts?: string[];
   optionTexts?: string[];
+  config?: QuestionConfig;
 }
 
 export interface QuizDefinition {
@@ -90,6 +102,10 @@ export interface EditorQuestion {
   timeLimitSeconds: string;
   imageUrl: string;
   explanation: string;
+  blankAnswers: string;
+  numericTolerance: string;
+  pairs: Array<{ left: string; right: string }>;
+  categories: Array<{ name: string; items: string[] }>;
   image?: string;
   imageData?: string;
 }
@@ -163,6 +179,7 @@ export interface LiveGameState {
   image: string;
   optionTexts: string[];
   optionOrder: number[];
+  questionConfig?: QuestionConfig;
   players: PlayerScore[];
   perfectPlayerIds?: string[];
   rewardCard?: RewardCardInfo;
@@ -186,6 +203,7 @@ export interface LiveQuestionPayload {
   image: string;
   optionTexts: string[];
   optionOrder: number[];
+  questionConfig?: QuestionConfig;
   timerSeconds?: number;
 }
 

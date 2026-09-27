@@ -10,7 +10,7 @@ import QuestionCard from "../components/quiz/QuestionCard";
 import VoteBars from "../components/quiz/VoteBars";
 import Leaderboard from "../components/quiz/Leaderboard";
 import TimerRing from "../components/quiz/TimerRing";
-import { answerLabels, formatAnswerText, isAnswerCorrect, isOrdering, isShortAnswer, responseToOptionIndices, shuffleIndices } from "../utils/answers";
+import { answerLabels, formatAnswerText, isAnswerCorrect, isOrdering, isShortAnswer, isWrittenAnswer, isStructuredAnswer, responseToOptionIndices, shuffleIndices } from "../utils/answers";
 import { getAppUrl } from "../utils/appUrl";
 import { getQuestionTimeLimitSeconds } from "../utils/quizTime";
 import { saveCompletedSession } from "../services/sessionHistoryService";
@@ -44,6 +44,7 @@ function createLiveQuestionPayload(question: QuizQuestion, questionIndex: number
     image: question.image || "",
     optionTexts: question.opts || [],
     optionOrder: resolvedOrder,
+    questionConfig: question.config,
   };
 }
 
@@ -232,7 +233,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
         const selectedIndices = responseToOptionIndices(currentQ, response);
         const selectedLabels = answerLabels(selectedIndices);
         setResponseCount((prev) => prev + 1);
-        if (!isShortAnswer(currentQ) && !isOrdering(currentQ)) {
+        if (!isWrittenAnswer(currentQ) && !isOrdering(currentQ) && !isStructuredAnswer(currentQ)) {
           setVotes((prev) => selectedLabels.reduce(
             (next, label) => ({ ...next, [label]: (next[label] || 0) + 1 }),
             prev
@@ -264,11 +265,13 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
                 score: p.score + pointsEarned,
                 lastEarnedPoints: pointsEarned,
                 correctAnswersCount: (p.correctAnswersCount || 0) + (isCorrect ? 1 : 0),
-                lastOption: isShortAnswer(currentQ)
+                lastOption: isWrittenAnswer(currentQ)
                   ? String(response || "").slice(0, 100)
                   : isOrdering(currentQ)
                     ? formatAnswerText(currentQ, response)
-                    : selectedLabels.join(", "),
+                    : isStructuredAnswer(currentQ)
+                      ? formatAnswerText(currentQ, response)
+                      : selectedLabels.join(", "),
               };
             }
             return p;
@@ -697,7 +700,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
               showExplanation={false}
             />
 
-            {!isShortAnswer(currentQuestion) && !isOrdering(currentQuestion) && (
+            {!isWrittenAnswer(currentQuestion) && !isOrdering(currentQuestion) && !isStructuredAnswer(currentQuestion) && (
               <Card title="Distribucion de Respuestas" subtitle="Votos emitidos por los estudiantes en la sala" style={{ marginTop: "24px", maxWidth: "980px", margin: "24px auto 0" }}>
                 <VoteBars votes={votes} totalVotes={totalVotesCount} optionsCount={currentQuestion.opts?.length || 4} />
               </Card>
@@ -732,7 +735,7 @@ export default function HostScreen({ ayudantia, roomCode, onExit, ownerId }: { a
               mascotEnabled={ayudantia.mascotEnabled ?? true}
             />
 
-            {!isShortAnswer(currentQuestion) && !isOrdering(currentQuestion) && (
+            {!isWrittenAnswer(currentQuestion) && !isOrdering(currentQuestion) && !isStructuredAnswer(currentQuestion) && (
               <Card title="Distribucion de Respuestas" subtitle="La barra verde senala la opcion correcta" style={{ marginTop: "24px", maxWidth: "980px", margin: "24px auto 0" }}>
                 <VoteBars
                   votes={votes}

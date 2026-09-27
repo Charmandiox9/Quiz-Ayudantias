@@ -8,8 +8,9 @@ import RewardCard from "../components/common/RewardCard";
 import MarkdownContent from "../components/common/MarkdownContent";
 import AnswerOptionMarkdown from "../components/quiz/AnswerOptionMarkdown";
 import SortableAnswerList from "../components/quiz/SortableAnswerList";
+import QuestionCard from "../components/quiz/QuestionCard";
 import { getPlayerDeviceId, clearActiveSession } from "../utils/session";
-import { answerLabels, formatAnswerText, isAnswerCorrect, isMultipleSelect, isOrdering, isShortAnswer } from "../utils/answers";
+import { answerLabels, formatAnswerText, isAnswerCorrect, isMultipleSelect, isOrdering, isShortAnswer, isWrittenAnswer, isStructuredAnswer } from "../utils/answers";
 import { CheckCircle, Clock, Trophy, ArrowLeft, Wifi, AlertTriangle, XCircle, Award, Zap } from "lucide-react";
 import type { PlayerInfo, LiveGameState, SelectedAnswer } from "../types";
 
@@ -24,6 +25,7 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
     image: "",
     optionTexts: [],
     optionOrder: [],
+    questionConfig: undefined,
     players: [],
   });
   const [selectedOption, setSelectedOption] = useState<SelectedAnswer>(null);
@@ -81,6 +83,7 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
           image: data.image || "",
           optionTexts: data.optionTexts || [],
           optionOrder: data.optionOrder || [],
+          questionConfig: data.questionConfig,
         }));
         setSelectedOption(data.answerType === "ordering" ? (data.optionOrder || []) : null);
         setHasVoted(false);
@@ -155,17 +158,19 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
     onExit();
   };
 
-  const resultQuestion = { type: gameState.answerType, ans: gameState.correctAnswerIndex, opts: gameState.optionTexts };
+  const resultQuestion = { type: gameState.answerType, ans: gameState.correctAnswerIndex, opts: gameState.optionTexts, config: gameState.questionConfig };
   const correctLetter = gameState.correctAnswerIndex !== null && gameState.correctAnswerIndex !== undefined
-    ? (isShortAnswer(resultQuestion) || isOrdering(resultQuestion)
+    ? (isWrittenAnswer(resultQuestion) || isOrdering(resultQuestion) || isStructuredAnswer(resultQuestion)
       ? formatAnswerText(resultQuestion, gameState.correctAnswerIndex)
       : answerLabels(gameState.correctAnswerIndex).join(", "))
     : null;
   const isCorrect = hasVoted && isAnswerCorrect(
-    { type: gameState.answerType, ans: gameState.correctAnswerIndex },
+    { type: gameState.answerType, ans: gameState.correctAnswerIndex, config: gameState.questionConfig },
     selectedOption
   );
-  const selectedLabels = isShortAnswer(gameState)
+  const selectedLabels = isWrittenAnswer(gameState) || isStructuredAnswer(gameState) || isOrdering(gameState)
+    ? formatAnswerText({ ...gameState, opts: gameState.optionTexts }, selectedOption)
+    : isShortAnswer(gameState)
     ? String(selectedOption || "")
     : isOrdering(gameState)
       ? formatAnswerText({ ...gameState, opts: gameState.optionTexts }, selectedOption)
@@ -253,7 +258,16 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
 
             {gameState.image && <img src={gameState.image} alt="Imagen de apoyo para la pregunta" style={{ display: "block", width: "100%", maxHeight: 360, objectFit: "contain", margin: "0 auto 16px", borderRadius: 12, border: "1px solid var(--color-border)" }} />}
 
-            {gameState.answerType === "short_answer" && (
+            {(["fill_blanks", "matching", "numeric", "categorization"] as const).includes(gameState.answerType as "fill_blanks" | "matching" | "numeric" | "categorization") && (
+              <QuestionCard
+                question={{ id: "live", type: gameState.answerType, q: gameState.prompt, opts: gameState.optionTexts, ans: gameState.correctAnswerIndex ?? [], config: gameState.questionConfig }}
+                selectedAnswerIndex={selectedOption}
+                onSelectAnswer={(answer) => setSelectedOption(answer)}
+                onSubmitAnswer={() => sendVote(selectedOption)}
+              />
+            )}
+
+            {!isWrittenAnswer(gameState) && !isStructuredAnswer(gameState) && gameState.answerType === "short_answer" && (
               <div style={{ display: "grid", gap: 12 }}>
                 <label htmlFor="live-short-answer" style={{ color: "var(--color-text-secondary)", fontWeight: 700 }}>Escribe una respuesta breve</label>
                 <input id="live-short-answer" value={typeof selectedOption === "string" ? selectedOption : ""} onChange={(event) => setSelectedOption(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") handleSubmitWrittenAnswer(); }} disabled={hasVoted} maxLength={240} placeholder="Tu respuesta" style={{ width: "100%", boxSizing: "border-box", border: "1px solid var(--color-border)", borderRadius: 10, padding: "14px 15px", font: "inherit" }} />
@@ -261,7 +275,7 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
               </div>
             )}
 
-            {gameState.answerType === "ordering" && (
+            {!isWrittenAnswer(gameState) && !isStructuredAnswer(gameState) && gameState.answerType === "ordering" && (
               <div style={{ display: "grid", gap: 9 }}>
                 <p style={{ margin: "0 0 4px", color: "var(--color-text-secondary)", fontWeight: 700 }}>Arrastra los elementos para ordenarlos o usa las flechas:</p>
                 <SortableAnswerList
@@ -275,7 +289,7 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
               </div>
             )}
 
-            {gameState.answerType !== "short_answer" && gameState.answerType !== "ordering" && <>
+            {!isWrittenAnswer(gameState) && !isStructuredAnswer(gameState) && gameState.answerType !== "short_answer" && gameState.answerType !== "ordering" && <>
               <p style={{ margin: "0 0 12px", color: "var(--color-text-secondary)", fontWeight: 700 }}>{gameState.answerType === "multiple_select" ? "Selecciona todas las alternativas correctas:" : "Elige una alternativa:"}</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "14px" }}>
               {answerOptions.map((optionText, optionIndex) => {
@@ -321,7 +335,7 @@ export default function PlayerScreen({ playerInfo, onExit }: { playerInfo: Playe
               </div>
             </>}
 
-            {gameState.answerType === "multiple_select" && (
+            {!isWrittenAnswer(gameState) && !isStructuredAnswer(gameState) && gameState.answerType === "multiple_select" && (
               <Button
                 variant="primary"
                 fullWidth

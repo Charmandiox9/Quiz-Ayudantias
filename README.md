@@ -5,7 +5,7 @@ Aplicación web para crear y realizar quizzes durante ayudantías. Incluye un pa
 ## Funciones
 
 - **Docencia:** acceso mediante enlace de un solo uso enviado por correo. Solo las cuentas autorizadas en `teacher_access` pueden administrar su catálogo.
-- **Catálogo:** creación de asignaturas y quizzes, edición de preguntas, publicación y archivo. El editor admite selección única o múltiple, verdadero/falso, respuesta corta y ordenamiento.
+- **Catálogo:** creación de asignaturas y quizzes, edición de preguntas, publicación y archivo. El editor admite selección única o múltiple, verdadero/falso, respuesta corta, ordenamiento, completar espacios, relacionar columnas, respuesta numérica con tolerancia y clasificar en categorías.
 - **Sesiones en vivo:** el docente inicia una sala y comparte su código o QR. Los estudiantes se unen con un apodo; las preguntas, respuestas y resultados se transmiten por Supabase Realtime.
 - **Práctica individual:** quizzes locales de ejemplo y quizzes remotos habilitados para práctica pública.
 - **Tarjetas de logro:** al completar un quiz se puede generar y descargar una tarjeta como imagen.

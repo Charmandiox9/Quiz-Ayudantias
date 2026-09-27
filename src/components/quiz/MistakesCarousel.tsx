@@ -10,7 +10,7 @@ import {
   XCircle,
   CheckCircle2,
 } from "lucide-react";
-import { answerLabels, formatAnswerText, isShortAnswer, isOrdering } from "../../utils/answers";
+import { answerLabels, formatAnswerText, isShortAnswer, isOrdering, isWrittenAnswer, isStructuredAnswer } from "../../utils/answers";
 import type { AnswerHistoryEntry } from "../../types";
 
 export default function MistakesCarousel({ mistakes = [], totalQuestions = 16 }: { mistakes?: AnswerHistoryEntry[]; totalQuestions?: number }) {
@@ -29,8 +29,8 @@ export default function MistakesCarousel({ mistakes = [], totalQuestions = 16 }:
   const correctLabels = answerLabels(correctOptIndex);
   const selectedText = formatAnswerText(q, userOptIndex);
   const correctText = formatAnswerText(q, correctOptIndex);
-  const responseLabel = isShortAnswer(q) ? "Tu respuesta" : isOrdering(q) ? "Tu orden" : `Tu respuesta (${selectedLabels.join(", ") || "sin respuesta"})`;
-  const correctLabel = isShortAnswer(q) ? "Respuestas aceptadas:" : isOrdering(q) ? "Orden correcto:" : `Respuesta correcta (${correctLabels.join(", ")}):`;
+  const responseLabel = isWrittenAnswer(q) || isStructuredAnswer(q) ? "Tu respuesta" : isOrdering(q) ? "Tu orden" : `Tu respuesta (${selectedLabels.join(", ") || "sin respuesta"})`;
+  const correctLabel = isWrittenAnswer(q) || isStructuredAnswer(q) ? "Respuesta correcta:" : isOrdering(q) ? "Orden correcto:" : `Respuesta correcta (${correctLabels.join(", ")}):`;
 
   const handlePrev = () => {
     if (safeIndex > 0) {

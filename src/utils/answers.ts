@@ -13,6 +13,14 @@ export function isOrdering(question: AnswerQuestion | null | undefined): boolean
   return question?.type === "ordering";
 }
 
+export function isWrittenAnswer(question: AnswerQuestion | null | undefined): boolean {
+  return isShortAnswer(question) || question?.type === "fill_blanks" || question?.type === "numeric";
+}
+
+export function isStructuredAnswer(question: AnswerQuestion | null | undefined): boolean {
+  return question?.type === "matching" || question?.type === "categorization";
+}
+
 function normalizeText(value: unknown): string {
   return String(value ?? "")
     .normalize("NFD")
@@ -42,6 +50,31 @@ export function getAnswerIndices(answer: AnswerValue | null | undefined): number
 }
 
 export function isAnswerCorrect(question: AnswerQuestion | null | undefined, answer: AnswerValue | null | undefined): boolean {
+  if (question?.type === "fill_blanks") {
+    const expected = Array.isArray(question?.ans) ? question.ans : [];
+    let actual: unknown[] = Array.isArray(answer) ? answer : [];
+    if (typeof answer === "string") {
+      try { const parsed: unknown = JSON.parse(answer); if (Array.isArray(parsed)) actual = parsed; } catch { actual = []; }
+    }
+    return expected.length > 0 && expected.length === actual.length && expected.every((accepted, index) => {
+      const choices = question?.config?.blankAnswers?.[index] || [String(accepted ?? "")];
+      return choices.some((choice) => normalizeText(choice) === normalizeText(actual[index]));
+    });
+  }
+
+  if (question?.type === "numeric") {
+    const expected = Number(question?.ans);
+    const actual = Number(answer);
+    const tolerance = Math.max(0, Number(question?.config?.numericTolerance) || 0);
+    return Number.isFinite(expected) && Number.isFinite(actual) && Math.abs(expected - actual) <= tolerance;
+  }
+
+  if (isStructuredAnswer(question)) {
+    const expected = Array.isArray(question?.ans) ? question.ans.map(Number) : [];
+    const actual = Array.isArray(answer) ? answer.map(Number) : [];
+    return expected.length > 0 && expected.length === actual.length && expected.every((value, index) => value === actual[index]);
+  }
+
   if (isShortAnswer(question)) {
     const expectedAnswers = Array.isArray(question?.ans) ? question.ans : [question?.ans];
     const normalizedAnswer = normalizeText(answer);
@@ -68,13 +101,32 @@ export function answerLabels(answer: AnswerValue | null | undefined): string[] {
 }
 
 export function responseToOptionIndices(question: AnswerQuestion | null | undefined, response: AnswerValue | null | undefined): number[] {
-  if (isShortAnswer(question)) return [];
+  if (isWrittenAnswer(question) || isStructuredAnswer(question)) return [];
   if (isOrdering(question) && Array.isArray(response)) return response.map(Number).filter(Number.isInteger);
   if (response !== undefined && response !== null) return getAnswerIndices(response);
   return [];
 }
 
 export function formatAnswerText(question: AnswerQuestion | null | undefined, response: AnswerValue | null | undefined): string {
+  if (question?.type === "fill_blanks") {
+    let values: unknown[] = Array.isArray(response) ? response : [];
+    if (typeof response === "string") {
+      try { const parsed: unknown = JSON.parse(response); if (Array.isArray(parsed)) values = parsed; } catch { values = []; }
+    }
+    return values.map((value, index) => `${index + 1}. ${String(value ?? "")}`).join(" · ");
+  }
+  if (question?.type === "numeric") {
+    return `${String(response ?? "")}${question?.config?.numericTolerance ? ` (±${question.config.numericTolerance})` : ""}`;
+  }
+  if (isStructuredAnswer(question)) {
+    const values = Array.isArray(response) ? response : [];
+    if (question?.type === "matching") {
+      return (question?.config?.pairs || []).map((pair, index) => `${pair.left} → ${(question?.config?.pairs || [])[Number(values[index])]?.right || "—"}`).join(" · ");
+    }
+    const categories = question?.config?.categories || [];
+    const items = categories.flatMap((category) => category.items);
+    return items.map((item, index) => `${item} → ${categories[Number(values[index])]?.name || "—"}`).join(" · ");
+  }
   if (isShortAnswer(question)) {
     return (Array.isArray(response) ? response : [response])
       .map((answer) => String(answer ?? "").trim())

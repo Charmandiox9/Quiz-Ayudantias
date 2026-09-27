@@ -58,6 +58,10 @@ const newQuestion = (): EditorQuestion => ({
   timeLimitSeconds: "",
   imageUrl: "",
   explanation: "",
+  blankAnswers: "",
+  numericTolerance: "0",
+  pairs: [{ left: "", right: "" }, { left: "", right: "" }],
+  categories: [{ name: "", items: [""] }, { name: "", items: [""] }],
 });
 const emptyQuizForm = (): QuizForm => ({ title: "", description: "", cardTitle: "", cardSubtitle: "", cardImage: "", practiceEnabled: false, questions: [newQuestion()] });
 
@@ -76,10 +80,14 @@ function quizToForm(quiz: QuizDefinition): QuizForm {
       options: [...(question.opts || [])],
       correctOption: String(question.ans ?? "0"),
       correctOptions: Array.isArray(question.ans) ? question.ans.map(String) : ["0"],
-      acceptedAnswers: Array.isArray(question.ans) ? question.ans.join("\n") : "",
+      acceptedAnswers: question.type === "numeric" ? String(question.ans ?? "") : Array.isArray(question.ans) ? question.ans.join("\n") : "",
       timeLimitSeconds: Number.isInteger(question.timeLimitSeconds) ? String(question.timeLimitSeconds) : "",
       imageUrl: question.image || "",
       explanation: question.exp || "",
+      blankAnswers: question.config?.blankAnswers?.map((answers) => answers.join(" | ")).join("\n") || "",
+      numericTolerance: String(question.config?.numericTolerance ?? 0),
+      pairs: question.config?.pairs?.map((pair) => ({ ...pair })) || [{ left: "", right: "" }, { left: "", right: "" }],
+      categories: question.config?.categories?.map((category) => ({ ...category, items: [...category.items] })) || [{ name: "", items: [""] }, { name: "", items: [""] }],
     })),
   };
 }
@@ -946,6 +954,10 @@ export default function HubScreen({
                     <option value="multiple_select">Selección múltiple</option>
                     <option value="short_answer">Respuesta corta</option>
                     <option value="ordering">Ordenar elementos</option>
+                    <option value="fill_blanks">Completar espacios</option>
+                    <option value="matching">Relacionar columnas</option>
+                    <option value="numeric">Respuesta numérica</option>
+                    <option value="categorization">Clasificar en categorías</option>
                   </select>
                 </label>
                 <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Enunciado *
@@ -991,7 +1003,31 @@ export default function HubScreen({
                     Deja vacío para usar 60 segundos. Puedes definir entre {MIN_QUESTION_TIME_SECONDS} y {MAX_QUESTION_TIME_SECONDS} segundos.
                   </span>
                 </label>
-                {question.type === "short_answer" ? (
+                {question.type === "fill_blanks" ? <>
+                  <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Respuestas por espacio * (una línea por espacio; variantes separadas por |)
+                    <textarea required value={question.blankAnswers} onChange={(event) => updateQuestion(questionIndex, "blankAnswers", event.target.value)} rows={3} placeholder={"París | Paris\nFrancia"} style={{ ...fieldStyle, marginTop: 5, resize: "vertical" }} />
+                  </label>
+                  <p style={{ margin: 0, color: "#64748B", fontSize: 12 }}>Marca los espacios en el enunciado con {"{{1}}, {{2}}, ..."} en el mismo orden.</p>
+                </> : question.type === "numeric" ? <>
+                  <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Valor correcto *
+                    <input required type="number" step="any" value={question.acceptedAnswers} onChange={(event) => updateQuestion(questionIndex, "acceptedAnswers", event.target.value)} style={{ ...fieldStyle, marginTop: 5 }} />
+                  </label>
+                  <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Tolerancia (opcional)
+                    <input required type="number" min="0" step="any" value={question.numericTolerance} onChange={(event) => updateQuestion(questionIndex, "numericTolerance", event.target.value)} style={{ ...fieldStyle, marginTop: 5 }} />
+                  </label>
+                </> : question.type === "matching" ? <>
+                  {question.pairs.map((pair, pairIndex) => <div key={pairIndex} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 8 }}>
+                    <input aria-label={"Elemento izquierdo " + (pairIndex + 1)} placeholder={"Columna A · " + (pairIndex + 1)} value={pair.left} onChange={(event) => setQuizForm((form) => ({ ...form, questions: form.questions.map((item, index) => index !== questionIndex ? item : { ...item, pairs: item.pairs.map((value, i) => i === pairIndex ? { ...value, left: event.target.value } : value) }) }))} style={fieldStyle} />
+                    <input aria-label={"Elemento derecho " + (pairIndex + 1)} placeholder={"Columna B · " + (pairIndex + 1)} value={pair.right} onChange={(event) => setQuizForm((form) => ({ ...form, questions: form.questions.map((item, index) => index !== questionIndex ? item : { ...item, pairs: item.pairs.map((value, i) => i === pairIndex ? { ...value, right: event.target.value } : value) }) }))} style={fieldStyle} />
+                  </div>)}
+                  <Button type="button" variant="outline" onClick={() => setQuizForm((form) => ({ ...form, questions: form.questions.map((item, index) => index === questionIndex ? { ...item, pairs: [...item.pairs, { left: "", right: "" }] } : item) }))}>Agregar pareja</Button>
+                </> : question.type === "categorization" ? <>
+                  {question.categories.map((category, categoryIndex) => <fieldset key={categoryIndex} style={{ display: "grid", gap: 7, border: "1px solid #CBD5E1", borderRadius: 8, padding: 9 }}>
+                    <input aria-label={"Nombre de categoría " + (categoryIndex + 1)} placeholder={"Categoría " + (categoryIndex + 1)} value={category.name} onChange={(event) => setQuizForm((form) => ({ ...form, questions: form.questions.map((item, index) => index !== questionIndex ? item : { ...item, categories: item.categories.map((value, i) => i === categoryIndex ? { ...value, name: event.target.value } : value) }) }))} style={fieldStyle} />
+                    <textarea aria-label={"Elementos de categoría " + (categoryIndex + 1)} placeholder="Un elemento por línea" value={category.items.join("\n")} onChange={(event) => setQuizForm((form) => ({ ...form, questions: form.questions.map((item, index) => index !== questionIndex ? item : { ...item, categories: item.categories.map((value, i) => i === categoryIndex ? { ...value, items: event.target.value.split(/\r?\n/) } : value) }) }))} rows={3} style={{ ...fieldStyle, resize: "vertical" }} />
+                  </fieldset>)}
+                  <Button type="button" variant="outline" onClick={() => setQuizForm((form) => ({ ...form, questions: form.questions.map((item, index) => index === questionIndex ? { ...item, categories: [...item.categories, { name: "", items: [""] }] } : item) }))}>Agregar categoría</Button>
+                </> : question.type === "short_answer" ? (
                   <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Respuestas aceptadas * (una por línea)
                     <textarea required value={question.acceptedAnswers} onChange={(event) => updateQuestion(questionIndex, "acceptedAnswers", event.target.value)} rows={3} placeholder={"Ej. encapsulamiento\nencapsulación"} style={{ ...fieldStyle, marginTop: 5, resize: "vertical" }} />
                     <span style={{ display: "block", marginTop: 5, color: "#64748B", fontSize: 12 }}>Se ignoran mayúsculas, tildes y espacios repetidos al corregir.</span>
@@ -1034,7 +1070,7 @@ export default function HubScreen({
                     )}
                   </div>
                 )}
-                {question.type !== "short_answer" && question.options.some((option) => option.trim()) && <details className="markdown-preview">
+                {(["single_choice", "multiple_select", "ordering", "true_false"] as QuestionType[]).includes(question.type) && question.options.some((option) => option.trim()) && <details className="markdown-preview">
                   <summary>Vista previa de alternativas con Markdown</summary>
                   <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
                     {question.options.map((option, optionIndex) => <div key={optionIndex} style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
@@ -1043,7 +1079,7 @@ export default function HubScreen({
                     </div>)}
                   </div>
                 </details>}
-                {question.type !== "short_answer" && <p style={{ margin: 0, color: "#64748B", fontSize: 12 }}>{question.type === "multiple_select" ? "Marca todas las alternativas correctas. Puedes agregar hasta 8 y darles formato Markdown." : question.type === "ordering" ? "La lista está en el orden correcto; los estudiantes deberán reordenarla." : question.type === "true_false" ? "Marca el círculo junto a la alternativa correcta." : "Marca la alternativa correcta. Puedes agregar hasta 8 opciones y usar Markdown."}</p>}
+                {(["single_choice", "multiple_select", "ordering", "true_false"] as QuestionType[]).includes(question.type) && <p style={{ margin: 0, color: "#64748B", fontSize: 12 }}>{question.type === "multiple_select" ? "Marca todas las alternativas correctas. Puedes agregar hasta 8 y darles formato Markdown." : question.type === "ordering" ? "La lista está en el orden correcto; los estudiantes deberán reordenarla." : question.type === "true_false" ? "Marca el círculo junto a la alternativa correcta." : "Marca la alternativa correcta. Puedes agregar hasta 8 opciones y usar Markdown."}</p>}
                 <label style={{ color: "#475569", fontSize: 13, fontWeight: 700 }}>Explicación (opcional)
                   <textarea value={question.explanation} onChange={(event) => updateQuestion(questionIndex, "explanation", event.target.value)} rows={2} style={{ ...fieldStyle, marginTop: 5, resize: "vertical" }} />
                 </label>
@@ -1058,7 +1094,7 @@ export default function HubScreen({
             ))}
 
             <Button type="button" variant="secondary" icon={Plus} onClick={() => setQuizForm((current) => ({ ...current, questions: [...current.questions, newQuestion()] }))}>Agregar pregunta</Button>
-            <p style={{ margin: 0, color: "#64748B", fontSize: 12 }}>Las respuestas cortas aceptan variantes y se corrigen ignorando tildes y mayúsculas. La selección múltiple requiere todas las correctas y ninguna incorrecta. Enunciados, explicaciones y alternativas admiten Markdown, como **negrita**, *cursiva*, `código`, listas, citas, bloques de código, tablas y tachado.</p>
+            <p style={{ margin: 0, color: "#64748B", fontSize: 12 }}>Las respuestas cortas ignoran tildes y mayúsculas. Para completar espacios, usa marcadores numerados en el enunciado y una línea de respuestas por espacio. Las respuestas numéricas aceptan tolerancia; relacionar columnas y clasificar requieren completar todas las asignaciones. Enunciados y explicaciones admiten Markdown.</p>
             {formError && <p role="alert" style={{ color: "#B91C1C", margin: 0 }}>{formError}</p>}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 9 }}>
               <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>

@@ -5,7 +5,7 @@ import Badge from "../components/common/Badge";
 import QuestionCard from "../components/quiz/QuestionCard";
 import MistakesCarousel from "../components/quiz/MistakesCarousel";
 import RewardCard from "../components/common/RewardCard";
-import { isAnswerCorrect, isMultipleSelect, isOrdering, isShortAnswer, shuffleIndices } from "../utils/answers";
+import { isAnswerCorrect, isMultipleSelect, isOrdering, isShortAnswer, isWrittenAnswer, isStructuredAnswer, shuffleIndices } from "../utils/answers";
 import type { AnswerHistoryEntry, QuizDefinition, SelectedAnswer } from "../types";
 import {
   ArrowRight,
@@ -58,8 +58,12 @@ export default function SoloScreen({ ayudantia, onExit }: { ayudantia: QuizDefin
 
   const handleSelectAnswer = (answer: SelectedAnswer) => {
     if (isAnswerRevealed) return;
-    if (isShortAnswer(currentQuestion)) {
+    if (isWrittenAnswer(currentQuestion)) {
       setSelectedOptionIndex(answer);
+      return;
+    }
+    if (isStructuredAnswer(currentQuestion)) {
+      setSelectedOptionIndex(Array.isArray(answer) ? answer : []);
       return;
     }
     if (isOrdering(currentQuestion) || typeof answer !== "number") return;
@@ -275,7 +279,7 @@ export default function SoloScreen({ ayudantia, onExit }: { ayudantia: QuizDefin
         selectedAnswerIndex={isOrdering(currentQuestion) ? orderingOrder : selectedOptionIndex}
         onSelectAnswer={handleSelectAnswer}
         onReorderAnswer={isOrdering(currentQuestion) ? setOrderingOrder : null}
-        onSubmitAnswer={isMultipleSelect(currentQuestion) || isShortAnswer(currentQuestion) || isOrdering(currentQuestion)
+        onSubmitAnswer={isMultipleSelect(currentQuestion) || isWrittenAnswer(currentQuestion) || isStructuredAnswer(currentQuestion) || isOrdering(currentQuestion)
           ? () => handleSubmitAnswer()
           : null}
         isRevealed={isAnswerRevealed}
